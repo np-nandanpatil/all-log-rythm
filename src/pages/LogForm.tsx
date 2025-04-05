@@ -351,7 +351,8 @@ export function LogForm() {
           <Paper withBorder shadow="md" p="xl" radius="md">
             <form onSubmit={handleSubmit}>
               <Stack gap="md">
-                <Group grow>
+                {/* Week number and date range section */}
+                <Stack gap="md">
                   <NumberInput
                     label="Week Number"
                     placeholder="Enter week number"
@@ -362,23 +363,28 @@ export function LogForm() {
                     error={weekNumberError}
                     radius="md"
                   />
-                  <DatePicker
-                    label="Start Date"
-                    placeholder="Pick start date"
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    error={dateRangeError}
-                    radius="md"
-                  />
-                  <DatePicker
-                    label="End Date"
-                    placeholder="Pick end date"
-                    value={endDate}
-                    onChange={handleEndDateChange}
-                    error={dateRangeError}
-                    radius="md"
-                  />
-                </Group>
+                  
+                  <Group grow align="flex-start" wrap="wrap">
+                    <DatePicker
+                      label="Start Date"
+                      placeholder="Pick start date"
+                      value={startDate}
+                      onChange={handleStartDateChange}
+                      error={dateRangeError}
+                      radius="md"
+                      style={{ minWidth: '200px', flex: '1 1 200px' }}
+                    />
+                    <DatePicker
+                      label="End Date"
+                      placeholder="Pick end date"
+                      value={endDate}
+                      onChange={handleEndDateChange}
+                      error={dateRangeError}
+                      radius="md"
+                      style={{ minWidth: '200px', flex: '1 1 200px' }}
+                    />
+                  </Group>
+                </Stack>
 
                 <Text fw={500} size="lg" mt="md">Activities</Text>
                 {activityDateError && (
@@ -387,41 +393,48 @@ export function LogForm() {
 
                 {activities.map((activity, index) => (
                   <Paper key={index} withBorder p="md" radius="md">
-                    <Group grow>
-                      <DatePicker
-                        label="Date"
-                        placeholder="Pick date"
-                        value={activity.date}
-                        onChange={(date) => handleActivityChange(index, 'date', date)}
-                        radius="md"
-                      />
-                      <NumberInput
-                        label="Hours"
-                        placeholder="Enter hours"
-                        min={0}
-                        max={24}
-                        value={activity.hours}
-                        onChange={(value) => handleActivityChange(index, 'hours', value)}
-                        radius="md"
-                      />
-                      <Textarea
-                        label="Description"
-                        placeholder="Enter activity description"
-                        value={activity.description}
-                        onChange={(e) => handleActivityChange(index, 'description', e.target.value)}
-                        radius="md"
-                      />
-                      {activities.length > 1 && (
-                        <Button 
-                          color="red" 
-                          variant="light" 
-                          onClick={() => handleRemoveActivity(index)}
+                    <Stack gap="md">
+                      <Group grow align="flex-start" wrap="wrap">
+                        <DatePicker
+                          label="Date"
+                          placeholder="Pick date"
+                          value={activity.date}
+                          onChange={(date) => handleActivityChange(index, 'date', date)}
                           radius="md"
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </Group>
+                          style={{ minWidth: '200px', flex: '1 1 200px' }}
+                        />
+                        <NumberInput
+                          label="Hours"
+                          placeholder="Enter hours"
+                          min={0}
+                          max={24}
+                          value={activity.hours}
+                          onChange={(value) => handleActivityChange(index, 'hours', value)}
+                          radius="md"
+                          style={{ minWidth: '150px', flex: '1 1 150px' }}
+                        />
+                      </Group>
+                      <Group grow>
+                        <Textarea
+                          label="Description"
+                          placeholder="Enter activity description"
+                          value={activity.description}
+                          onChange={(e) => handleActivityChange(index, 'description', e.target.value)}
+                          radius="md"
+                        />
+                        {activities.length > 1 && (
+                          <Button 
+                            color="red" 
+                            variant="light" 
+                            onClick={() => handleRemoveActivity(index)}
+                            radius="md"
+                            style={{ alignSelf: 'flex-end' }}
+                          >
+                            Remove
+                          </Button>
+                        )}
+                      </Group>
+                    </Stack>
                   </Paper>
                 ))}
 
@@ -435,7 +448,7 @@ export function LogForm() {
                   Add Activity
                 </Button>
 
-                <Group justify="flex-end" mt="xl">
+                <Group justify="flex-end" mt="xl" wrap="wrap" gap="sm">
                   <Button 
                     variant="outline" 
                     onClick={() => navigate('/dashboard')}

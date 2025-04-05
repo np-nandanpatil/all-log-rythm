@@ -3,7 +3,7 @@
 :root {
   font-family: 'Orbitron', 'Rajdhani', 'Chakra Petch', sans-serif;
   line-height: 1.5;
-  font-weight: 400;
+  font-weight: 500;
   color-scheme: light;
   color: #1a1a1a;
   background-color: #f8f9fa;
@@ -20,7 +20,7 @@ body {
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Orbitron', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   color: #1a1a1a;
   margin-bottom: 1rem;
 }
@@ -80,6 +80,8 @@ button:focus-visible {
   border: 1px solid #e9ecef;
   border-radius: 0.5rem;
   color: #1a1a1a;
+  font-weight: 500;
+  font-family: 'Rajdhani', sans-serif;
 }
 
 .mantine-TextInput-input:focus,
@@ -151,13 +153,14 @@ button:focus-visible {
 /* Title */
 .mantine-Title-root {
   font-family: 'Orbitron', sans-serif;
-  font-weight: 600;
+  font-weight: 700;
   color: #1a1a1a;
 }
 
 /* Text */
 .mantine-Text-root {
   color: #1a1a1a;
+  font-weight: 500;
 }
 
 /* ActionIcon */
@@ -174,6 +177,7 @@ button:focus-visible {
 
 .mantine-Menu-item {
   color: #1a1a1a;
+  font-weight: 500;
 }
 
 .mantine-Menu-item:hover {
