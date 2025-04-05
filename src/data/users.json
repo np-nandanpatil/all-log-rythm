@@ -1,0 +1,39 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "email": "student1@example.com",
+      "password": "student123",
+      "name": "Student One",
+      "role": "student"
+    },
+    {
+      "id": "2",
+      "email": "student2@example.com",
+      "password": "student123",
+      "name": "Student Two",
+      "role": "student"
+    },
+    {
+      "id": "3",
+      "email": "teamlead@example.com",
+      "password": "lead123",
+      "name": "Team Leader",
+      "role": "team_lead"
+    },
+    {
+      "id": "4",
+      "email": "guide@example.com",
+      "password": "guide123",
+      "name": "Project Guide",
+      "role": "guide"
+    },
+    {
+      "id": "5",
+      "email": "coordinator@example.com",
+      "password": "coord123",
+      "name": "Class Coordinator",
+      "role": "coordinator"
+    }
+  ]
+} 
