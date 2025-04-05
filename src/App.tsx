@@ -2,22 +2,18 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { MantineProvider, createTheme, AppShell, Group, Title } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationCenter } from './components/NotificationCenter';
-import { ThemeToggle } from './components/ThemeToggle';
 import { LogForm } from './pages/LogForm';
 import { LogView } from './pages/LogView';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
 
-console.log('App component loaded');
-
 // Create a theme instance
-const createAppTheme = (isDarkMode: boolean) => createTheme({
+const theme = createTheme({
   primaryColor: 'purple',
   fontFamily: "'Orbitron', 'Rajdhani', 'Chakra Petch', sans-serif",
   colors: {
@@ -46,27 +42,14 @@ const createAppTheme = (isDarkMode: boolean) => createTheme({
         shadow: 'sm',
       },
     },
-    AppShell: {
-      styles: {
-        header: {
-          borderBottom: isDarkMode 
-            ? '1px solid var(--mantine-color-dark-4)' 
-            : '1px solid var(--mantine-color-gray-2)',
-        },
-      },
-    },
   },
 });
 
 function AppContent() {
-  const { isDarkMode } = useTheme();
   const { currentUser } = useAuth();
-  const theme = createAppTheme(isDarkMode);
 
-  console.log('App component rendering');
-  
   return (
-    <MantineProvider theme={theme} defaultColorScheme={isDarkMode ? 'dark' : 'light'}>
+    <MantineProvider theme={theme} defaultColorScheme="light">
       <Notifications />
       <AppShell
         header={{ height: 60 }}
@@ -76,7 +59,6 @@ function AppContent() {
           <Group h="100%" px="md" justify="space-between">
             <Title order={3} c="purple">ExposeNet log</Title>
             <Group>
-              <ThemeToggle />
               {currentUser && <NotificationCenter />}
             </Group>
           </Group>
@@ -127,13 +109,11 @@ function AppContent() {
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </Router>
-    </ThemeProvider>
+    <Router>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </Router>
   );
 }
 
