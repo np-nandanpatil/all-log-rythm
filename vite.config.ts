@@ -11,5 +11,6 @@ export default defineConfig({
     watch: {
       usePolling: true
     }
-  }
+  },
+  base: './', // This ensures assets are loaded correctly on GitHub Pages
 })
