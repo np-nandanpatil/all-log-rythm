@@ -2,7 +2,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { MantineProvider, createTheme, AppShell, Group, Title, Text } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Login } from './pages/Login';
+import Login from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { NotificationCenter } from './components/NotificationCenter';
@@ -49,88 +49,88 @@ function AppContent() {
   const { currentUser } = useAuth();
 
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
-      <Notifications />
-      <AppShell
-        header={{ height: 60 }}
-        padding="md"
-        footer={{ height: 60 }}
-      >
-        <AppShell.Header>
-          <Group h="100%" px="md" justify="space-between">
-            <Title order={3} c="purple">All Log Rythm</Title>
-            <Group>
-              {currentUser && <NotificationCenter />}
-            </Group>
+    <AppShell
+      header={{ height: 60 }}
+      padding="md"
+      footer={{ height: 60 }}
+    >
+      <AppShell.Header>
+        <Group h="100%" px="md" justify="space-between">
+          <Title order={3} c="purple">All Log Rythm</Title>
+          <Group>
+            {currentUser && <NotificationCenter />}
           </Group>
-        </AppShell.Header>
+        </Group>
+      </AppShell.Header>
 
-        <AppShell.Main>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/logs/new"
-              element={
-                <ProtectedRoute allowedRoles={['student', 'team_lead']}>
-                  <LogForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/logs/:id"
-              element={
-                <ProtectedRoute>
-                  <LogView />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/logs/:id/edit"
-              element={
-                <ProtectedRoute allowedRoles={['student', 'team_lead']}>
-                  <LogForm />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </AppShell.Main>
+      <AppShell.Main>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs/new"
+            element={
+              <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+                <LogForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs/:id"
+            element={
+              <ProtectedRoute>
+                <LogView />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+                <LogForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AppShell.Main>
 
-        <AppShell.Footer p="md">
-          <Group justify="center">
-            <Text size="sm" c="dimmed">
-              Developed by{' '}
-              <a 
-                href="https://github.com/np-nandanpatil" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ color: 'var(--mantine-color-purple-6)' }}
-              >
-                Nandan
-              </a>
-            </Text>
-          </Group>
-        </AppShell.Footer>
-      </AppShell>
-    </MantineProvider>
+      <AppShell.Footer p="md">
+        <Group justify="center">
+          <Text size="sm" c="dimmed">
+            Developed by{' '}
+            <a 
+              href="https://github.com/np-nandanpatil" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ color: 'var(--mantine-color-purple-6)' }}
+            >
+              Nandan
+            </a>
+          </Text>
+        </Group>
+      </AppShell.Footer>
+    </AppShell>
   );
 }
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
-    </Router>
+    <MantineProvider theme={theme} defaultColorScheme="light">
+      <Notifications />
+      <Router>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </Router>
+    </MantineProvider>
   );
 }
 

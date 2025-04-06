@@ -17,7 +17,7 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { dataService } from '../services/dataService';
+import { dataServiceAdapter } from '../services/dataServiceAdapter';
 import { NotificationCenter } from '../components/NotificationCenter';
 
 export function LogView() {
@@ -34,29 +34,31 @@ export function LogView() {
 
   useEffect(() => {
     if (id) {
-      const logData = dataService.getLogById(id);
-      if (logData) {
-        setLog(logData);
-      } else {
-        notifications.show({
-          title: 'Error',
-          message: 'Log not found',
-          color: 'red'
-        });
-        navigate('/dashboard');
-      }
+      const fetchLog = async () => {
+        const logData = await dataServiceAdapter.getLogById(id);
+        if (logData) {
+          setLog(logData);
+        } else {
+          notifications.show({
+            title: 'Error',
+            message: 'Log not found',
+            color: 'red'
+          });
+          navigate('/dashboard');
+        }
+        setLoading(false);
+      };
+      fetchLog();
     }
-    setLoading(false);
   }, [id, navigate]);
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (!log) return;
     
     setSubmitting(true);
     
     try {
-      const updatedLog = dataService.updateLog(id!, {
-        ...log,
+      const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: newStatus,
         updatedAt: new Date().toISOString()
       });
@@ -80,7 +82,7 @@ export function LogView() {
     }
   };
 
-  const handleResubmitForReview = () => {
+  const handleResubmitForReview = async () => {
     if (!log) return;
     
     setSubmitting(true);
@@ -101,46 +103,16 @@ export function LogView() {
         }
       }
       
-      const updatedLog = dataService.updateLog(id!, {
-        ...log,
+      const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: nextStatus,
         updatedAt: new Date().toISOString()
       });
       
       setLog(updatedLog);
       
-      // Create notification for the reviewer
-      if (nextStatus === 'pending-lead') {
-        // Find a team lead to notify
-        const teamLeads = dataService.getUsers().filter((user: any) => user.role === 'team_lead');
-        if (teamLeads.length > 0) {
-          dataService.createNotification({
-            userId: teamLeads[0].id,
-            title: 'Log Resubmitted for Review',
-            message: `Week ${log.weekNumber} log has been resubmitted for your review.`,
-            logId: id,
-            read: false,
-            createdAt: new Date().toISOString()
-          });
-        }
-      } else if (nextStatus === 'pending-guide') {
-        // Find a guide to notify
-        const guides = dataService.getUsers().filter((user: any) => user.role === 'guide');
-        if (guides.length > 0) {
-          dataService.createNotification({
-            userId: guides[0].id,
-            title: 'Log Resubmitted for Review',
-            message: `Week ${log.weekNumber} log has been resubmitted for your review.`,
-            logId: id,
-            read: false,
-            createdAt: new Date().toISOString()
-          });
-        }
-      }
-      
       notifications.show({
         title: 'Success',
-        message: `Log resubmitted for ${nextStatus === 'pending-lead' ? 'team lead' : 'guide'} review`,
+        message: `Log resubmitted for review`,
         color: 'green'
       });
     } catch (error) {
@@ -193,7 +165,8 @@ export function LogView() {
     }
   };
 
-  const canEdit = currentUser?.id === log?.createdBy && log?.status === 'draft';
+  const canEdit = currentUser?.id === log?.createdBy && (log?.status === 'draft' || log?.status === 'needs-revision');
+  const canSubmitForReview = currentUser?.id === log?.createdBy && (log?.status === 'draft' || log?.status === 'needs-revision');
   const canApproveAsLead = currentUser?.role === 'team_lead' && log?.status === 'pending-lead';
   const canApproveAsGuide = currentUser?.role === 'guide' && log?.status === 'pending-guide';
   const canApproveAsCoordinator = currentUser?.role === 'coordinator' && log?.status === 'approved';
@@ -203,28 +176,24 @@ export function LogView() {
   const canResubmit = currentUser?.id === log?.createdBy && log?.status === 'needs-revision';
   const canDelete = currentUser?.role === 'team_lead';
 
-  const handleAddComment = () => {
-    if (!comment.trim()) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please enter a comment',
-        color: 'red'
-      });
-      return;
-    }
+  const handleAddComment = async () => {
+    if (!log || !comment.trim()) return;
     
     setSubmitting(true);
     
     try {
-      const updatedLog = dataService.addComment(id!, {
+      const newComment = {
         text: comment,
         userId: currentUser?.id,
         userName: currentUser?.name,
-        userRole: currentUser?.role
-      });
+        userRole: currentUser?.role,
+        createdAt: new Date().toISOString()
+      };
       
+      const updatedLog = await dataServiceAdapter.addComment(id!, newComment);
       setLog(updatedLog);
       setComment('');
+      setShowCommentForm(false);
       
       notifications.show({
         title: 'Success',
@@ -243,43 +212,35 @@ export function LogView() {
     }
   };
 
-  const handleRequestRevision = () => {
-    if (!log) return;
-    
-    if (!revisionMessage.trim()) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please provide a message explaining what changes are needed',
-        color: 'red'
-      });
-      return;
-    }
+  const handleRequestRevision = async () => {
+    if (!log || !revisionMessage.trim()) return;
     
     setSubmitting(true);
     
     try {
-      // First add the comment with the revision request
-      const updatedLog = dataService.addComment(id!, {
+      const newComment = {
         text: revisionMessage,
         userId: currentUser?.id,
         userName: currentUser?.name,
-        userRole: currentUser?.role
-      });
+        userRole: currentUser?.role,
+        createdAt: new Date().toISOString()
+      };
       
-      // Then update the status to needs-revision
-      const finalLog = dataService.updateLog(id!, {
-        ...updatedLog,
+      const updatedLog = await dataServiceAdapter.addComment(id!, newComment);
+      
+      // Update log status to needs-revision
+      const finalUpdatedLog = await dataServiceAdapter.updateLog(id!, {
         status: 'needs-revision',
         updatedAt: new Date().toISOString()
       });
       
-      setLog(finalLog);
+      setLog(finalUpdatedLog);
       setRevisionMessage('');
       setShowRevisionForm(false);
       
       notifications.show({
         title: 'Success',
-        message: 'Log marked for revision',
+        message: 'Revision requested successfully',
         color: 'green'
       });
     } catch (error) {
@@ -294,37 +255,69 @@ export function LogView() {
     }
   };
 
+  const handleSubmitForReview = async () => {
+    if (!log) return;
+    
+    setSubmitting(true);
+    
+    try {
+      const updatedLog = await dataServiceAdapter.updateLog(id!, {
+        status: 'pending-lead',
+        updatedAt: new Date().toISOString()
+      });
+      
+      setLog(updatedLog);
+      
+      notifications.show({
+        title: 'Success',
+        message: 'Log submitted for review',
+        color: 'green'
+      });
+    } catch (error) {
+      console.error('Error submitting log for review:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to submit log for review',
+        color: 'red'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-  const handleDeleteLog = () => {
+  const handleDeleteLog = async () => {
     if (!log) return;
     
-    if (window.confirm(`Are you sure you want to delete this log? This action cannot be undone.`)) {
-      setSubmitting(true);
+    if (!window.confirm('Are you sure you want to delete this log? This action cannot be undone.')) {
+      return;
+    }
+    
+    setSubmitting(true);
+    
+    try {
+      await dataServiceAdapter.deleteLog(id!);
       
-      try {
-        dataService.deleteLog(id!);
-        
-        notifications.show({
-          title: 'Success',
-          message: 'Log deleted successfully',
-          color: 'green'
-        });
-        
-        navigate('/dashboard');
-      } catch (error) {
-        console.error('Error deleting log:', error);
-        notifications.show({
-          title: 'Error',
-          message: 'Failed to delete log',
-          color: 'red'
-        });
-      } finally {
-        setSubmitting(false);
-      }
+      notifications.show({
+        title: 'Success',
+        message: 'Log deleted successfully',
+        color: 'green'
+      });
+      
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error deleting log:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to delete log',
+        color: 'red'
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -380,6 +373,9 @@ export function LogView() {
     );
   }
 
+  // Ensure activities is always an array
+  const activities = log.activities || [];
+
   return (
     <AppShell
       header={{ height: 60 }}
@@ -390,6 +386,16 @@ export function LogView() {
           <Title order={3} c="purple">All Log Rythm</Title>
           <Group>
             <NotificationCenter />
+            <Button 
+              onClick={() => navigate('/dashboard')}
+              variant="light"
+              color="indigo"
+              radius="md"
+              leftSection={<span>←</span>}
+              mb="md"
+            >
+              Back to Dashboard
+            </Button>
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
               Sign Out
             </Button>
@@ -398,255 +404,248 @@ export function LogView() {
       </AppShell.Header>
 
       <AppShell.Main>
-        <Container size="lg" py="xl">
-          {loading ? (
-            <Text>Loading...</Text>
-          ) : log ? (
-            <Stack gap="xl">
-              <Group justify="space-between">
-                <Title c="purple">Week {log.weekNumber} Log</Title>
-                <Button 
-                  variant="light" 
-                  onClick={() => navigate('/dashboard')}
-                  radius="md"
-                >
-                  Back to Dashboard
-                </Button>
+        <Container size="md" py="xl">
+          <Stack gap="lg">
+            {/* Back to Dashboard button */}
+            <Button 
+              onClick={() => navigate('/dashboard')}
+              variant="light"
+              color="indigo"
+              radius="md"
+              leftSection={<span>←</span>}
+              mb="md"
+            >
+              Back to Dashboard
+            </Button>
+            
+            {/* Log header section */}
+            <Paper withBorder shadow="md" p="xl" radius="md">
+              <Group justify="space-between" mb="md">
+                <Title order={2}>Week {log.weekNumber}</Title>
+                <Badge color={getStatusColor(log.status)} size="lg" radius="md">
+                  {getLogStatusText(log.status)}
+                </Badge>
               </Group>
 
-              <Paper withBorder shadow="md" p="xl" radius="md">
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <div>
-                      <Text fw={700} size="lg">Week {log.weekNumber}</Text>
-                      <Text size="sm" c="dimmed">
-                        {log.startDate ? new Date(log.startDate).toLocaleDateString() : 'Start date not available'} - {log.endDate ? new Date(log.endDate).toLocaleDateString() : 'End date not available'}
+              <Text size="sm" c="dimmed" mb="md">
+                {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
+              </Text>
+
+              <Text mb="md">
+                Created by: {log.createdByName}
+              </Text>
+
+              <Group justify="flex-end">
+                {canEdit && (
+                  <Button 
+                    onClick={() => navigate(`/logs/${id}/edit`)}
+                    variant="light"
+                    color="blue"
+                    radius="md"
+                  >
+                    Edit Log
+                  </Button>
+                )}
+                {canSubmitForReview && (
+                  <Button 
+                    onClick={handleSubmitForReview}
+                    loading={submitting}
+                    color="blue"
+                    radius="md"
+                  >
+                    Submit for Review
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button 
+                    onClick={handleDeleteLog}
+                    variant="light"
+                    color="red"
+                    radius="md"
+                    loading={submitting}
+                  >
+                    Delete Log
+                  </Button>
+                )}
+              </Group>
+            </Paper>
+
+            {/* Activities section */}
+            <Paper withBorder shadow="md" p="xl" radius="md">
+              <Title order={3} mb="lg">Activities</Title>
+              <Stack gap="md">
+                {activities.map((activity: any, index: number) => (
+                  <Paper key={index} withBorder p="md" radius="md">
+                    <Group justify="space-between" mb="xs">
+                      <Text fw={500}>
+                        {new Date(activity.date).toLocaleDateString()}
                       </Text>
-                    </div>
-                    <Text 
-                      size="sm" 
-                      fw={500} 
-                      c={getStatusColor(log.status)}
-                      style={{ 
-                        padding: '4px 12px', 
-                        borderRadius: '20px', 
-                        backgroundColor: `var(--mantine-color-${getStatusColor(log.status)}-1)`,
-                        border: `1px solid var(--mantine-color-${getStatusColor(log.status)}-3)`
-                      }}
-                    >
-                      {getLogStatusText(log.status)}
-                    </Text>
-                  </Group>
-                  
-                  <Text size="sm">
-                    Created by: {log.createdByName || 'Unknown'}
-                  </Text>
-                  
-                  <Text size="sm" c="dimmed">
-                    Last updated: {log.updatedAt ? new Date(log.updatedAt).toLocaleString() : 'Date not available'}
-                  </Text>
+                      <Badge radius="md">{activity.hours} hours</Badge>
+                    </Group>
+                    <Text>{activity.description}</Text>
+                  </Paper>
+                ))}
+              </Stack>
+            </Paper>
 
-                  <Divider my="md" />
-
-                  <Title order={3}>Activities</Title>
-                  <Stack gap="md">
-                    {log.activities.map((activity: any, index: number) => (
-                      <Paper key={index} withBorder p="md" radius="md">
-                        <Group justify="space-between">
-                          <Text fw={500}>{activity.date ? new Date(activity.date).toLocaleDateString() : 'Date not available'}</Text>
-                          <Badge size="lg" radius="md">{activity.hours} hours</Badge>
-                        </Group>
-                        <Text mt="sm">{activity.description}</Text>
-                      </Paper>
-                    ))}
-                  </Stack>
-
-                  <Divider my="md" />
-
-                  <Title order={3}>Comments</Title>
-                  <Stack gap="md">
-                    {log.comments && log.comments.length > 0 ? (
-                      log.comments.map((comment: any, index: number) => (
-                        <Paper key={index} withBorder p="md" radius="md">
-                          <Group justify="space-between" mb="xs">
-                            <Text fw={500}>{comment.userName} ({comment.userRole})</Text>
-                            <Text size="sm" c="dimmed">
-                              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
-                            </Text>
-                          </Group>
-                          <Text>{comment.text}</Text>
-                        </Paper>
-                      ))
-                    ) : (
-                      <Text c="dimmed">No comments yet</Text>
-                    )}
-                  </Stack>
-
-                  <Divider my="md" />
-
-                  <Group justify="space-between" align="center">
-                    <Title order={3}>Add Comment</Title>
-                    <Button 
-                      variant="light" 
-                      color="indigo" 
-                      onClick={() => setShowCommentForm(!showCommentForm)}
-                      radius="md"
-                    >
-                      {showCommentForm ? 'Hide Comment Form' : 'Add Comment'}
-                    </Button>
-                  </Group>
-                  
-                  {showCommentForm && (
-                    <>
-                      <Textarea
-                        placeholder="Enter your comment"
-                        value={comment}
-                        onChange={(e) => setComment(e.target.value)}
-                        minRows={3}
-                        radius="md"
-                      />
-                      <Button 
-                        onClick={handleAddComment} 
-                        loading={submitting}
-                        style={{ alignSelf: 'flex-end' }}
-                        color="indigo"
-                        radius="md"
-                      >
-                        Submit Comment
-                      </Button>
-                    </>
-                  )}
-
-                  <Divider my="md" />
-
-                  <Group justify="space-between" align="center">
-                    <Title order={3}>Request Revision</Title>
-                    {canRequestRevision && (
-                      <Button 
-                        variant="light" 
-                        color="yellow" 
-                        onClick={() => setShowRevisionForm(!showRevisionForm)}
-                        radius="md"
-                      >
-                        {showRevisionForm ? 'Hide Revision Form' : 'Request Revision'}
-                      </Button>
-                    )}
-                  </Group>
-
-                  {showRevisionForm && (
-                    <>
-                      <Textarea
-                        placeholder="Enter revision message"
-                        value={revisionMessage}
-                        onChange={(e) => setRevisionMessage(e.target.value)}
-                        minRows={3}
-                        radius="md"
-                      />
-                      <Group justify="flex-end">
-                        <Button 
-                          variant="outline" 
-                          onClick={() => setShowRevisionForm(false)}
-                          radius="md"
-                        >
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={handleRequestRevision} 
-                          loading={submitting}
-                          color="red"
-                          radius="md"
-                        >
-                          Request Revision
-                        </Button>
+            <Paper withBorder shadow="md" p="xl" radius="md">
+              <Title order={3}>Comments</Title>
+              <Stack gap="md">
+                {log.comments && log.comments.length > 0 ? (
+                  log.comments.map((comment: any, index: number) => (
+                    <Paper key={index} withBorder p="md" radius="md">
+                      <Group justify="space-between" mb="xs">
+                        <Text fw={500}>{comment.userName} ({comment.userRole})</Text>
+                        <Text size="sm" c="dimmed">
+                          {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
+                        </Text>
                       </Group>
-                    </>
-                  )}
+                      <Text>{comment.text}</Text>
+                    </Paper>
+                  ))
+                ) : (
+                  <Text c="dimmed">No comments yet</Text>
+                )}
+              </Stack>
+            </Paper>
 
-                  <Divider my="md" />
+            <Group justify="space-between" align="center">
+              <Title order={3}>Add Comment</Title>
+              <Button 
+                variant="light" 
+                color="indigo" 
+                onClick={() => setShowCommentForm(!showCommentForm)}
+                radius="md"
+              >
+                {showCommentForm ? 'Hide Comment Form' : 'Add Comment'}
+              </Button>
+            </Group>
+            
+            {showCommentForm && (
+              <>
+                <Textarea
+                  placeholder="Enter your comment"
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  minRows={3}
+                  radius="md"
+                />
+                <Button 
+                  onClick={handleAddComment} 
+                  loading={submitting}
+                  style={{ alignSelf: 'flex-end' }}
+                  color="indigo"
+                  radius="md"
+                >
+                  Submit Comment
+                </Button>
+              </>
+            )}
 
-                  <Title order={3}>Actions</Title>
-                  <Group>
-                    {canEdit && (
-                      <Button 
-                        onClick={() => navigate(`/logs/${id}/edit`)}
-                        color="indigo"
-                        radius="md"
-                      >
-                        Edit Log
-                      </Button>
-                    )}
-                    
-                    {canApproveAsLead && (
-                      <Button 
-                        onClick={() => handleStatusChange('pending-guide')}
-                        loading={submitting}
-                        color="blue"
-                        radius="md"
-                      >
-                        Approve & Send to Guide
-                      </Button>
-                    )}
-                    
-                    {canApproveAsGuide && (
-                      <Button 
-                        onClick={() => handleStatusChange('approved')}
-                        loading={submitting}
-                        color="green"
-                        radius="md"
-                      >
-                        Approve
-                      </Button>
-                    )}
-                    
-                    {canRequestRevision && (
-                      <Button 
-                        onClick={() => setShowRevisionForm(true)}
-                        color="yellow"
-                        radius="md"
-                      >
-                        Request Revision
-                      </Button>
-                    )}
-                    
-                    {canResubmit && (
-                      <Button 
-                        onClick={handleResubmitForReview}
-                        loading={submitting}
-                        color="blue"
-                        radius="md"
-                      >
-                        Resubmit for Review
-                      </Button>
-                    )}
-                    
-                    {canApproveAsCoordinator && (
-                      <Button 
-                        onClick={() => handleStatusChange('final-approved')}
-                        loading={submitting}
-                        color="teal"
-                        radius="md"
-                      >
-                        Final Approve
-                      </Button>
-                    )}
-                    
-                    {canDelete && (
-                      <Button 
-                        onClick={handleDeleteLog}
-                        loading={submitting}
-                        color="red"
-                        radius="md"
-                      >
-                        Delete Log
-                      </Button>
-                    )}
-                  </Group>
-                </Stack>
-              </Paper>
-            </Stack>
-          ) : (
-            <Text>Log not found</Text>
-          )}
+            <Divider my="md" />
+
+            <Group justify="space-between" align="center">
+              <Title order={3}>Request Revision</Title>
+              {canRequestRevision && (
+                <Button 
+                  variant="light" 
+                  color="yellow" 
+                  onClick={() => setShowRevisionForm(!showRevisionForm)}
+                  radius="md"
+                >
+                  {showRevisionForm ? 'Hide Revision Form' : 'Request Revision'}
+                </Button>
+              )}
+            </Group>
+
+            {showRevisionForm && (
+              <>
+                <Textarea
+                  placeholder="Enter revision message"
+                  value={revisionMessage}
+                  onChange={(e) => setRevisionMessage(e.target.value)}
+                  minRows={3}
+                  radius="md"
+                />
+                <Group justify="flex-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowRevisionForm(false)}
+                    radius="md"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleRequestRevision} 
+                    loading={submitting}
+                    color="red"
+                    radius="md"
+                  >
+                    Request Revision
+                  </Button>
+                </Group>
+              </>
+            )}
+
+            <Divider my="md" />
+
+            <Title order={3}>Actions</Title>
+            <Group>
+              {canApproveAsLead && (
+                <Button 
+                  onClick={() => handleStatusChange('pending-guide')}
+                  loading={submitting}
+                  color="blue"
+                  radius="md"
+                >
+                  Approve & Send to Guide
+                </Button>
+              )}
+              
+              {canApproveAsGuide && (
+                <Button 
+                  onClick={() => handleStatusChange('approved')}
+                  loading={submitting}
+                  color="green"
+                  radius="md"
+                >
+                  Approve
+                </Button>
+              )}
+              
+              {canRequestRevision && (
+                <Button 
+                  onClick={() => setShowRevisionForm(true)}
+                  color="yellow"
+                  radius="md"
+                >
+                  Request Revision
+                </Button>
+              )}
+              
+              {canResubmit && (
+                <Button 
+                  onClick={handleResubmitForReview}
+                  loading={submitting}
+                  color="blue"
+                  radius="md"
+                >
+                  Resubmit for Review
+                </Button>
+              )}
+              
+              {canApproveAsCoordinator && (
+                <Button 
+                  onClick={() => handleStatusChange('final-approved')}
+                  loading={submitting}
+                  color="teal"
+                  radius="md"
+                >
+                  Final Approve
+                </Button>
+              )}
+            </Group>
+          </Stack>
         </Container>
       </AppShell.Main>
     </AppShell>

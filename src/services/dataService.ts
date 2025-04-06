@@ -44,6 +44,12 @@ export const dataService = {
     return users.find((user: any) => user.id === id);
   },
 
+  // Authenticate user by username and password
+  authenticateUser(username: string, password: string) {
+    const users = this.getUsers();
+    return users.find((user: any) => user.username === username && user.password === password);
+  },
+
   // Log operations
   getLogs() {
     return loadFromStorage('logs') || [];

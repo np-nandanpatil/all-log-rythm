@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Badge, Menu, Text, Stack, Group, Button } from '@mantine/core';
 import { useAuth } from '../contexts/AuthContext';
-import { dataService } from '../services/dataService';
+import { dataServiceAdapter } from '../services/dataServiceAdapter';
 import { useNavigate } from 'react-router-dom';
 
 export function NotificationCenter() {
@@ -9,29 +9,48 @@ export function NotificationCenter() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (currentUser) {
-      // Fetch notifications from the data service
-      const userNotifications = dataService.getNotifications(currentUser.id);
-      setNotifications(userNotifications);
-      setUnreadCount(userNotifications.filter((n: { read: boolean }) => !n.read).length);
+      const fetchNotifications = async () => {
+        try {
+          // Fetch notifications from the data service
+          const userNotifications = await dataServiceAdapter.getNotifications(currentUser.id);
+          setNotifications(userNotifications);
+          setUnreadCount(userNotifications.filter((n: { read: boolean }) => !n.read).length);
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchNotifications();
     }
   }, [currentUser]);
 
-  const handleMarkAsRead = (id: string) => {
-    dataService.markNotificationAsRead(id);
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
-    setUnreadCount(prev => Math.max(0, prev - 1));
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await dataServiceAdapter.markNotificationAsRead(id);
+      setNotifications(notifications.map(n => 
+        n.id === id ? { ...n, read: true } : n
+      ));
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
     if (currentUser) {
-      dataService.markAllNotificationsAsRead(currentUser.id);
-      setNotifications(notifications.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
+      try {
+        const updatedNotifications = await dataServiceAdapter.markAllNotificationsAsRead(currentUser.id);
+        setNotifications(updatedNotifications);
+        setUnreadCount(0);
+      } catch (error) {
+        console.error('Error marking all notifications as read:', error);
+      }
     }
   };
 
@@ -58,7 +77,11 @@ export function NotificationCenter() {
       </Menu.Target>
       <Menu.Dropdown>
         <Menu.Label>Notifications</Menu.Label>
-        {notifications.length > 0 ? (
+        {loading ? (
+          <Text p="xs" c="dimmed" ta="center">
+            Loading notifications...
+          </Text>
+        ) : notifications.length > 0 ? (
           <>
             <Stack gap="xs" p="xs">
               {notifications.map(notification => (

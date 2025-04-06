@@ -1,20 +1,32 @@
 import { useEffect, useState } from 'react';
-import { Container, Title, Button, Group, Card, Text, Stack, AppShell } from '@mantine/core';
+import { Container, Title, Button, Group, Card, Text, Stack, AppShell, Badge } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { dataService } from '../services/dataService';
+import { dataServiceAdapter } from '../services/dataServiceAdapter';
 import { NotificationCenter } from '../components/NotificationCenter';
+import { notifications } from '@mantine/notifications';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const { currentUser, signOut } = useAuth();
   const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (currentUser) {
-      // Get all logs for everyone to view
-      const allLogs = dataService.getLogs();
-      setLogs(allLogs);
+      const fetchLogs = async () => {
+        try {
+          // Get all logs for everyone to view
+          const allLogs = await dataServiceAdapter.getLogs();
+          setLogs(allLogs);
+        } catch (error) {
+          console.error('Error fetching logs:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchLogs();
     }
   }, [currentUser]);
 
@@ -29,6 +41,32 @@ export function Dashboard() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
+  };
+
+  const handleDeleteLog = async (logId: string) => {
+    if (!window.confirm('Are you sure you want to delete this log? This action cannot be undone.')) {
+      return;
+    }
+    
+    try {
+      await dataServiceAdapter.deleteLog(logId);
+      // Update the logs list after deletion
+      const updatedLogs = logs.filter(log => log.id !== logId);
+      setLogs(updatedLogs);
+      
+      notifications.show({
+        title: 'Success',
+        message: 'Log deleted successfully',
+        color: 'green'
+      });
+    } catch (error) {
+      console.error('Error deleting log:', error);
+      notifications.show({
+        title: 'Error',
+        message: 'Failed to delete log',
+        color: 'red'
+      });
+    }
   };
 
   const getLogStatusText = (log: any) => {
@@ -98,82 +136,70 @@ export function Dashboard() {
                 leftSection={<span>+</span>}
                 variant="filled"
                 color="indigo"
+                radius="md"
               >
                 Create New Log
               </Button>
             )}
           </Group>
 
-          <Stack gap="md">
-            {logs.length > 0 ? (
-              logs.map((log) => (
-                <Card 
-                  key={log.id} 
-                  withBorder 
-                  padding="lg" 
-                  radius="md"
-                  style={{ 
-                    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => handleViewLog(log.id)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-5px)';
-                    e.currentTarget.style.boxShadow = '0 10px 20px rgba(0,0,0,0.1)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-                  }}
-                >
+          {loading ? (
+            <Text>Loading logs...</Text>
+          ) : logs.length > 0 ? (
+            <Stack>
+              {logs.map(log => (
+                <Card key={log.id} withBorder p="md" radius="md">
                   <Group justify="space-between" mb="xs">
-                    <div>
-                      <Text fw={700} size="lg">Week {log.weekNumber}</Text>
-                      <Text size="sm" c="dimmed">
-                        {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
-                      </Text>
-                    </div>
-                    <Text 
-                      size="sm" 
-                      fw={500} 
-                      c={getLogStatusColor(log.status)}
-                      style={{ 
-                        padding: '4px 12px', 
-                        borderRadius: '20px', 
-                        backgroundColor: `var(--mantine-color-${getLogStatusColor(log.status)}-1)`,
-                        border: `1px solid var(--mantine-color-${getLogStatusColor(log.status)}-3)`
-                      }}
-                    >
+                    <Title order={3}>Week {log.weekNumber}</Title>
+                    <Badge color={getLogStatusColor(log.status)} radius="md">
                       {getLogStatusText(log)}
-                    </Text>
+                    </Badge>
                   </Group>
                   
-                  <Text size="sm" mb="xs">
-                    Created by: {log.createdByName || 'Unknown'}
+                  <Text size="sm" c="dimmed" mb="md">
+                    {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
                   </Text>
                   
-                  <Text size="sm" c="dimmed">
-                    Last updated: {new Date(log.updatedAt).toLocaleString()}
+                  <Text mb="md">
+                    Created by: {log.createdByName} ({log.createdBy})
                   </Text>
-                </Card>
-              ))
-            ) : (
-              <Card withBorder padding="xl" radius="md">
-                <Stack align="center" gap="md">
-                  <Text size="lg" c="dimmed">No logs found</Text>
-                  {(currentUser?.role === 'student' || currentUser?.role === 'team_lead') && (
+                  
+                  <Group justify="flex-end">
                     <Button 
-                      onClick={handleCreateLog}
+                      onClick={() => handleViewLog(log.id)}
                       variant="light"
                       color="indigo"
+                      radius="md"
                     >
-                      Create your first log
+                      View Details
                     </Button>
-                  )}
-                </Stack>
-              </Card>
-            )}
-          </Stack>
+                    {currentUser?.id === log.createdBy && (log.status === 'draft' || log.status === 'needs-revision') && (
+                      <Button 
+                        onClick={() => navigate(`/logs/${log.id}/edit`)}
+                        variant="light"
+                        color="blue"
+                        radius="md"
+                      >
+                        Edit Log
+                      </Button>
+                    )}
+                    {currentUser?.role === 'team_lead' && (
+                      <Button 
+                        onClick={() => handleDeleteLog(log.id)}
+                        variant="light"
+                        color="red"
+                        radius="md"
+                      >
+                        Delete Log
+                      </Button>
+                    )}
+                  </Group>
+                </Card>
+              ))}
+            </Stack>
+          ) : (
+            <Text>No logs found. Create a new log to get started.</Text>
+          )}
         </Container>
       </AppShell.Main>
     </AppShell>

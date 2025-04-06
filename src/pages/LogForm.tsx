@@ -17,7 +17,7 @@ import {
 import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { dataService } from '../services/dataService';
+import { dataServiceAdapter } from '../services/dataServiceAdapter';
 import { NotificationCenter } from '../components/NotificationCenter';
 
 export function LogForm() {
@@ -40,18 +40,21 @@ export function LogForm() {
 
   useEffect(() => {
     if (id) {
-      const log = dataService.getLogById(id);
-      if (log) {
-        setWeekNumber(log.weekNumber);
-        setStartDate(new Date(log.startDate));
-        setEndDate(new Date(log.endDate));
-        setLogStatus(log.status);
-        setActivities(log.activities.map((activity: any) => ({
-          date: new Date(activity.date),
-          hours: activity.hours,
-          description: activity.description
-        })));
-      }
+      const fetchLog = async () => {
+        const log = await dataServiceAdapter.getLogById(id);
+        if (log) {
+          setWeekNumber(log.weekNumber);
+          setStartDate(new Date(log.startDate));
+          setEndDate(new Date(log.endDate));
+          setLogStatus(log.status);
+          setActivities(log.activities.map((activity: any) => ({
+            date: new Date(activity.date),
+            hours: activity.hours,
+            description: activity.description
+          })));
+        }
+      };
+      fetchLog();
     }
   }, [id]);
 
@@ -79,37 +82,37 @@ export function LogForm() {
     }
   };
 
-  const checkWeekNumberExists = (weekNum: number): boolean => {
+  const checkWeekNumberExists = async (weekNum: number): Promise<boolean> => {
     // Skip check if we're editing the current log
     if (id) {
-      const currentLog = dataService.getLogById(id);
+      const currentLog = await dataServiceAdapter.getLogById(id);
       if (currentLog && currentLog.weekNumber === weekNum) {
         return false; // Week number is valid for the current log being edited
       }
     }
     
     // Check if any other log has this week number
-    const allLogs = dataService.getLogs();
-    return allLogs.some((log: { weekNumber: number }) => log.weekNumber === weekNum);
+    return await dataServiceAdapter.isWeekNumberExists(weekNum, id);
   };
 
-  const handleWeekNumberChange = (value: string | number) => {
+  const handleWeekNumberChange = async (value: string | number) => {
     const numValue = typeof value === 'string' ? (value === '' ? 1 : parseInt(value, 10)) : value;
     setWeekNumber(numValue);
     
     // Check if week number already exists
-    if (checkWeekNumberExists(numValue)) {
+    const exists = await checkWeekNumberExists(numValue);
+    if (exists) {
       setWeekNumberError(`Week ${numValue} log already exists. Please choose a different week.`);
     } else {
       setWeekNumberError(null);
     }
   };
 
-  const checkDateRangeOverlap = (start: Date | null, end: Date | null): boolean => {
+  const checkDateRangeOverlap = async (start: Date | null, end: Date | null): Promise<boolean> => {
     if (!start || !end) return false;
     
     try {
-      return dataService.isDateRangeOverlapping(
+      return await dataServiceAdapter.isDateRangeOverlapping(
         start.toISOString(),
         end.toISOString(),
         id
@@ -120,18 +123,19 @@ export function LogForm() {
     }
   };
 
-  const handleStartDateChange = (date: Date | null) => {
+  const handleStartDateChange = async (date: Date | null) => {
     setStartDate(date);
     
     // Check if date range overlaps with any existing log
-    if (date && endDate && checkDateRangeOverlap(date, endDate)) {
-      setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
-    } else {
-      setDateRangeError(null);
-    }
-    
-    // Validate activity dates are within new date range
     if (date && endDate) {
+      const overlaps = await checkDateRangeOverlap(date, endDate);
+      if (overlaps) {
+        setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
+      } else {
+        setDateRangeError(null);
+      }
+      
+      // Validate activity dates are within new date range
       for (const activity of activities) {
         if (activity.date) {
           const activityDate = new Date(activity.date);
@@ -145,18 +149,19 @@ export function LogForm() {
     }
   };
 
-  const handleEndDateChange = (date: Date | null) => {
+  const handleEndDateChange = async (date: Date | null) => {
     setEndDate(date);
     
     // Check if date range overlaps with any existing log
-    if (startDate && date && checkDateRangeOverlap(startDate, date)) {
-      setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
-    } else {
-      setDateRangeError(null);
-    }
-    
-    // Validate activity dates are within new date range
     if (startDate && date) {
+      const overlaps = await checkDateRangeOverlap(startDate, date);
+      if (overlaps) {
+        setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
+      } else {
+        setDateRangeError(null);
+      }
+      
+      // Validate activity dates are within new date range
       for (const activity of activities) {
         if (activity.date) {
           const activityDate = new Date(activity.date);
@@ -192,7 +197,8 @@ export function LogForm() {
     }
 
     // Check if week number already exists
-    if (checkWeekNumberExists(weekNumber)) {
+    const weekExists = await checkWeekNumberExists(weekNumber);
+    if (weekExists) {
       notifications.show({
         title: 'Error',
         message: `Week ${weekNumber} log already exists. Please choose a different week.`,
@@ -202,7 +208,8 @@ export function LogForm() {
     }
     
     // Check if date range overlaps with any existing log
-    if (checkDateRangeOverlap(startDate, endDate)) {
+    const dateOverlaps = await checkDateRangeOverlap(startDate, endDate);
+    if (dateOverlaps) {
       notifications.show({
         title: 'Error',
         message: 'The date range overlaps with an existing log. Please choose a different date range.',
@@ -246,14 +253,14 @@ export function LogForm() {
       };
 
       if (id) {
-        dataService.updateLog(id, logData);
+        await dataServiceAdapter.updateLog(id, logData);
         notifications.show({
           title: 'Success',
           message: 'Log updated successfully',
           color: 'green'
         });
       } else {
-        dataService.createLog(logData);
+        await dataServiceAdapter.createLog(logData);
         notifications.show({
           title: 'Success',
           message: 'Log created successfully',
@@ -287,7 +294,7 @@ export function LogForm() {
     setLoading(true);
 
     try {
-      const log = dataService.getLogById(id);
+      const log = await dataServiceAdapter.getLogById(id);
       if (!log) {
         notifications.show({
           title: 'Error',
@@ -297,15 +304,30 @@ export function LogForm() {
         return;
       }
 
-      // Update log status to pending-lead
-      dataService.updateLog(id, {
-        ...log,
-        status: 'pending-lead'
+      // Determine the next status based on the current status
+      let nextStatus = 'pending-lead';
+      if (log.status === 'needs-revision') {
+        // If it was previously approved by team lead, go back to team lead
+        // If it was previously approved by guide, go back to guide
+        // If it was previously approved by coordinator, go back to guide
+        const lastApprover = log.comments && log.comments.length > 0 
+          ? log.comments[log.comments.length - 1].userRole 
+          : null;
+        
+        if (lastApprover === 'guide' || lastApprover === 'coordinator') {
+          nextStatus = 'pending-guide';
+        }
+      }
+
+      // Update log status
+      await dataServiceAdapter.updateLog(id, {
+        status: nextStatus,
+        updatedAt: new Date().toISOString()
       });
 
       notifications.show({
         title: 'Success',
-        message: 'Log submitted for team lead review',
+        message: 'Log submitted for review',
         color: 'green'
       });
 
@@ -473,7 +495,7 @@ export function LogForm() {
                       Submit for Review
                     </Button>
                   )}
-                  {id && logStatus === 'draft' && (
+                  {id && (logStatus === 'draft' || logStatus === 'needs-revision') && (
                     <Button 
                       onClick={handleSubmitForReview}
                       loading={loading}

@@ -1,89 +1,75 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import usersData from '../data/users.json';
+import { firebaseService } from '../services/firebaseService';
 
 console.log('AuthContext loaded');
 
 interface User {
   id: string;
   username: string;
+  role: string;
   name: string;
-  role: 'student' | 'team_lead' | 'guide' | 'coordinator';
 }
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signOut: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}
+};
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  console.log('AuthProvider rendering');
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Check for stored user data on mount
   useEffect(() => {
+    // Check for stored user session
     const storedUser = localStorage.getItem('currentUser');
     if (storedUser) {
       setCurrentUser(JSON.parse(storedUser));
     }
+    setLoading(false);
   }, []);
 
-  async function login(username: string, password: string) {
-    console.log('Attempting login for:', username);
-    setLoading(true);
-    
+  const login = async (username: string, password: string) => {
     try {
-      // Simulate network delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const user = usersData.users.find(
-        u => u.username === username && u.password === password
-      );
-
-      if (!user) {
+      const authenticatedUser = await firebaseService.authenticateUser(username, password);
+      if (!authenticatedUser) {
         throw new Error('Invalid credentials');
       }
-
-      // Remove password from user object
-      const { password: _, ...userWithoutPassword } = user;
       
-      console.log('Login successful for:', user.username);
-      setCurrentUser(userWithoutPassword as User);
-      localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
-    } finally {
-      setLoading(false);
-    }
-  }
+      const userData: User = {
+        id: authenticatedUser.id || '',
+        username: authenticatedUser.username || '',
+        role: authenticatedUser.role || '',
+        name: authenticatedUser.name || ''
+      };
 
-  async function signOut() {
-    console.log('Signing out');
+      setCurrentUser(userData);
+      localStorage.setItem('currentUser', JSON.stringify(userData));
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  };
+
+  const signOut = () => {
     setCurrentUser(null);
     localStorage.removeItem('currentUser');
-    console.log('Sign out successful');
-  }
-
-  const value = {
-    currentUser,
-    loading,
-    login,
-    signOut
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ currentUser, loading, login, signOut }}>
       {children}
     </AuthContext.Provider>
   );
-} 
+}; 
