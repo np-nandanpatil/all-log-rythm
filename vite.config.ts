@@ -23,5 +23,8 @@ export default defineConfig({
         manualChunks: undefined
       }
     }
+  },
+  resolve: {
+    extensions: ['.js', '.jsx', '.ts', '.tsx']
   }
 })
