@@ -56,13 +56,13 @@ export function Login() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="indigo">ExposeNet log</Title>
+          <Title order={3} c="purple">ExposeNet log</Title>
         </Group>
       </AppShell.Header>
 
       <AppShell.Main>
         <Container size={420} my={40}>
-          <Title ta="center" c="indigo">Welcome to ExposeNet log</Title>
+          <Title ta="center" c="purple">Welcome to ExposeNet log</Title>
           <Text c="dimmed" size="sm" ta="center" mt={5}>
             Enter your credentials to continue
           </Text>

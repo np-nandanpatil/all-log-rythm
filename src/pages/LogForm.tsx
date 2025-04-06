@@ -90,11 +90,11 @@ export function LogForm() {
     
     // Check if any other log has this week number
     const allLogs = dataService.getLogs();
-    return allLogs.some(log => log.weekNumber === weekNum);
+    return allLogs.some((log: { weekNumber: number }) => log.weekNumber === weekNum);
   };
 
-  const handleWeekNumberChange = (value: number | '') => {
-    const numValue = value || 1;
+  const handleWeekNumberChange = (value: string | number) => {
+    const numValue = typeof value === 'string' ? (value === '' ? 1 : parseInt(value, 10)) : value;
     setWeekNumber(numValue);
     
     // Check if week number already exists
@@ -334,7 +334,7 @@ export function LogForm() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="indigo">ExposeNet log</Title>
+          <Title order={3} c="purple">ExposeNet log</Title>
           <Group>
             <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
@@ -346,7 +346,7 @@ export function LogForm() {
 
       <AppShell.Main>
         <Container size="md" py="xl">
-          <Title mb="xl" c="indigo">{id ? 'Edit Log' : 'Create New Log'}</Title>
+          <Title mb="xl" c="purple">{id ? 'Edit Log' : 'Create New Log'}</Title>
 
           <Paper withBorder shadow="md" p="xl" radius="md">
             <form onSubmit={handleSubmit}>
@@ -365,24 +365,23 @@ export function LogForm() {
                   />
                   
                   <Group grow align="flex-start" wrap="wrap">
-                    <DatePicker
-                      label="Start Date"
-                      placeholder="Pick start date"
-                      value={startDate}
-                      onChange={handleStartDateChange}
-                      error={dateRangeError}
-                      radius="md"
-                      style={{ minWidth: '200px', flex: '1 1 200px' }}
-                    />
-                    <DatePicker
-                      label="End Date"
-                      placeholder="Pick end date"
-                      value={endDate}
-                      onChange={handleEndDateChange}
-                      error={dateRangeError}
-                      radius="md"
-                      style={{ minWidth: '200px', flex: '1 1 200px' }}
-                    />
+                    <div>
+                      <Text size="sm" fw={500} mb={5}>Start Date</Text>
+                      <DatePicker
+                        value={startDate}
+                        onChange={handleStartDateChange}
+                        style={{ minWidth: '200px', flex: '1 1 200px' }}
+                      />
+                      {dateRangeError && <Text c="red" size="sm">{dateRangeError}</Text>}
+                    </div>
+                    <div>
+                      <Text size="sm" fw={500} mb={5}>End Date</Text>
+                      <DatePicker
+                        value={endDate}
+                        onChange={handleEndDateChange}
+                        style={{ minWidth: '200px', flex: '1 1 200px' }}
+                      />
+                    </div>
                   </Group>
                 </Stack>
 
@@ -395,14 +394,14 @@ export function LogForm() {
                   <Paper key={index} withBorder p="md" radius="md">
                     <Stack gap="md">
                       <Group grow align="flex-start" wrap="wrap">
-                        <DatePicker
-                          label="Date"
-                          placeholder="Pick date"
-                          value={activity.date}
-                          onChange={(date) => handleActivityChange(index, 'date', date)}
-                          radius="md"
-                          style={{ minWidth: '200px', flex: '1 1 200px' }}
-                        />
+                        <div>
+                          <Text size="sm" fw={500} mb={5}>Date</Text>
+                          <DatePicker
+                            value={activity.date}
+                            onChange={(date) => handleActivityChange(index, 'date', date)}
+                            style={{ minWidth: '200px', flex: '1 1 200px' }}
+                          />
+                        </div>
                         <NumberInput
                           label="Hours"
                           placeholder="Enter hours"

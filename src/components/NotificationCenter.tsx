@@ -15,7 +15,7 @@ export function NotificationCenter() {
       // Fetch notifications from the data service
       const userNotifications = dataService.getNotifications(currentUser.id);
       setNotifications(userNotifications);
-      setUnreadCount(userNotifications.filter(n => !n.read).length);
+      setUnreadCount(userNotifications.filter((n: { read: boolean }) => !n.read).length);
     }
   }, [currentUser]);
 
@@ -65,7 +65,7 @@ export function NotificationCenter() {
                 <Menu.Item 
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  sx={{ 
+                  style={{ 
                     backgroundColor: notification.read ? 'transparent' : 'rgba(99, 102, 241, 0.1)',
                     whiteSpace: 'normal',
                     borderRadius: '8px',

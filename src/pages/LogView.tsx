@@ -203,9 +203,7 @@ export function LogView() {
   const canResubmit = currentUser?.id === log?.createdBy && log?.status === 'needs-revision';
   const canDelete = currentUser?.role === 'team_lead';
 
-  const handleAddComment = (e: React.FormEvent) => {
-    e.preventDefault();
-    
+  const handleAddComment = () => {
     if (!comment.trim()) {
       notifications.show({
         title: 'Error',
@@ -389,7 +387,7 @@ export function LogView() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="indigo">ExposeNet log</Title>
+          <Title order={3} c="purple">ExposeNet log</Title>
           <Group>
             <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
@@ -406,7 +404,7 @@ export function LogView() {
           ) : log ? (
             <Stack gap="xl">
               <Group justify="space-between">
-                <Title c="indigo">Week {log.weekNumber} Log</Title>
+                <Title c="purple">Week {log.weekNumber} Log</Title>
                 <Button 
                   variant="light" 
                   onClick={() => navigate('/dashboard')}
@@ -422,7 +420,7 @@ export function LogView() {
                     <div>
                       <Text fw={700} size="lg">Week {log.weekNumber}</Text>
                       <Text size="sm" c="dimmed">
-                        {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
+                        {log.startDate ? new Date(log.startDate).toLocaleDateString() : 'Start date not available'} - {log.endDate ? new Date(log.endDate).toLocaleDateString() : 'End date not available'}
                       </Text>
                     </div>
                     <Text 
@@ -445,7 +443,7 @@ export function LogView() {
                   </Text>
                   
                   <Text size="sm" c="dimmed">
-                    Last updated: {new Date(log.updatedAt).toLocaleString()}
+                    Last updated: {log.updatedAt ? new Date(log.updatedAt).toLocaleString() : 'Date not available'}
                   </Text>
 
                   <Divider my="md" />
@@ -455,7 +453,7 @@ export function LogView() {
                     {log.activities.map((activity: any, index: number) => (
                       <Paper key={index} withBorder p="md" radius="md">
                         <Group justify="space-between">
-                          <Text fw={500}>{new Date(activity.date).toLocaleDateString()}</Text>
+                          <Text fw={500}>{activity.date ? new Date(activity.date).toLocaleDateString() : 'Date not available'}</Text>
                           <Badge size="lg" radius="md">{activity.hours} hours</Badge>
                         </Group>
                         <Text mt="sm">{activity.description}</Text>
@@ -473,7 +471,7 @@ export function LogView() {
                           <Group justify="space-between" mb="xs">
                             <Text fw={500}>{comment.userName} ({comment.userRole})</Text>
                             <Text size="sm" c="dimmed">
-                              {new Date(comment.timestamp).toLocaleString()}
+                              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : 'Date not available'}
                             </Text>
                           </Group>
                           <Text>{comment.text}</Text>
@@ -510,7 +508,7 @@ export function LogView() {
                       <Button 
                         onClick={handleAddComment} 
                         loading={submitting}
-                        self="flex-end"
+                        style={{ alignSelf: 'flex-end' }}
                         color="indigo"
                         radius="md"
                       >
