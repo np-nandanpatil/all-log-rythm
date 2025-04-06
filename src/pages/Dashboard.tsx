@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Container, Title, Button, Group, Card, Text, Stack, AppShell, Badge } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { dataServiceAdapter } from '../services/dataServiceAdapter';
+import { dataServiceAdapter } from '../services';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { notifications } from '@mantine/notifications';
 

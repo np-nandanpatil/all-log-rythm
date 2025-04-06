@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Badge, Menu, Text, Stack, Group, Button } from '@mantine/core';
 import { useAuth } from '../contexts/AuthContext';
-import { dataServiceAdapter } from '../services/dataServiceAdapter';
+import { dataServiceAdapter } from '../services';
 import { useNavigate } from 'react-router-dom';
 
 export function NotificationCenter() {

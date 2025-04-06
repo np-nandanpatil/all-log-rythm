@@ -17,7 +17,7 @@ import {
 import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { dataServiceAdapter } from '../services/dataServiceAdapter';
+import { dataServiceAdapter } from '../services';
 import { NotificationCenter } from '../components/NotificationCenter';
 
 export function LogForm() {
