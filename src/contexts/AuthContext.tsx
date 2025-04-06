@@ -5,7 +5,7 @@ console.log('AuthContext loaded');
 
 interface User {
   id: string;
-  email: string;
+  username: string;
   name: string;
   role: 'student' | 'team_lead' | 'guide' | 'coordinator';
 }
@@ -13,7 +13,7 @@ interface User {
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  async function login(email: string, password: string) {
-    console.log('Attempting login for:', email);
+  async function login(username: string, password: string) {
+    console.log('Attempting login for:', username);
     setLoading(true);
     
     try {
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(resolve => setTimeout(resolve, 500));
       
       const user = usersData.users.find(
-        u => u.email === email && u.password === password
+        u => u.username === username && u.password === password
       );
 
       if (!user) {
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Remove password from user object
       const { password: _, ...userWithoutPassword } = user;
       
-      console.log('Login successful for:', user.email);
+      console.log('Login successful for:', user.username);
       setCurrentUser(userWithoutPassword as User);
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
     } finally {

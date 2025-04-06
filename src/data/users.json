@@ -2,37 +2,44 @@
   "users": [
     {
       "id": "1",
-      "email": "student1@example.com",
+      "username": "student1",
       "password": "student123",
       "name": "Student One",
       "role": "student"
     },
     {
       "id": "2",
-      "email": "student2@example.com",
+      "username": "student2",
       "password": "student123",
       "name": "Student Two",
       "role": "student"
     },
     {
       "id": "3",
-      "email": "teamlead@example.com",
+      "username": "student3",
+      "password": "student123",
+      "name": "Student Three",
+      "role": "student"
+    },
+    {
+      "id": "4",
+      "username": "teamlead",
       "password": "lead123",
       "name": "Team Leader",
       "role": "team_lead"
     },
     {
-      "id": "4",
-      "email": "guide@example.com",
+      "id": "5",
+      "username": "guide",
       "password": "guide123",
       "name": "Project Guide",
       "role": "guide"
     },
     {
-      "id": "5",
-      "email": "coordinator@example.com",
+      "id": "6",
+      "username": "coordinator",
       "password": "coord123",
-      "name": "Class Coordinator",
+      "name": "Project Coordinator",
       "role": "coordinator"
     }
   ]
