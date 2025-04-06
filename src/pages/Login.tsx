@@ -56,7 +56,7 @@ export function Login() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="purple">ExposeNet log</Title>
+          <Title order={3} c="purple">All Log Rythm</Title>
         </Group>
       </AppShell.Header>
 
