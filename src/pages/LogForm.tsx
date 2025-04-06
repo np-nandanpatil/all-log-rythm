@@ -238,7 +238,7 @@ export function LogForm() {
           hours: activity.hours,
           description: activity.description
         })),
-        status: id ? undefined : 'draft', // Keep existing status when updating
+        status: id ? logStatus : 'draft', // Preserve existing status when updating
         createdBy: currentUser?.id,
         createdByName: currentUser?.name,
         createdAt: new Date().toISOString(),
