@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MantineProvider, createTheme, AppShell, Group, Title, Text } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';

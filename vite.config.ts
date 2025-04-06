@@ -12,17 +12,12 @@ export default defineConfig({
       usePolling: true
     }
   },
-  base: '/all-log-rythm/', // Use the repository name as the base path for GitHub Pages
+  base: '/all-log-rythm/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
-    rollupOptions: {
-      output: {
-        manualChunks: undefined
-      }
-    }
+    minify: 'terser'
   },
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx']
