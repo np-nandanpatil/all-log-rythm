@@ -7,7 +7,12 @@ export default defineConfig({
   base: '/all-log-rythm/',
   build: {
     outDir: 'dist',
-    sourcemap: false,
-    minify: 'terser'
+    sourcemap: true,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
   }
 })
