@@ -12,5 +12,16 @@ export default defineConfig({
       usePolling: true
     }
   },
-  base: './', // This ensures assets are loaded correctly on GitHub Pages
+  base: '/', // Use absolute paths for development
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false,
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  }
 })
