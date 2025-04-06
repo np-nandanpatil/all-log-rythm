@@ -58,7 +58,7 @@ function AppContent() {
       >
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
-            <Title order={3} c="purple">ExposeNet log</Title>
+            <Title order={3} c="purple">All Log Rythm</Title>
             <Group>
               {currentUser && <NotificationCenter />}
             </Group>

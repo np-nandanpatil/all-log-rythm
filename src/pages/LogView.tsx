@@ -11,8 +11,8 @@ import {
   Badge, 
   Divider,
   Textarea,
-  ActionIcon,
-  Menu,
+  // ActionIcon,
+  // Menu,
   AppShell
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
@@ -336,7 +336,7 @@ export function LogView() {
       >
         <AppShell.Header p="xs">
           <Group justify="space-between">
-            <Title order={3}>ExposeNet log</Title>
+            <Title order={3}>All Log Rythm</Title>
             <Group>
               <NotificationCenter />
               <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
@@ -362,7 +362,7 @@ export function LogView() {
       >
         <AppShell.Header p="xs">
           <Group justify="space-between">
-            <Title order={3}>ExposeNet log</Title>
+            <Title order={3}>All Log Rythm</Title>
             <Group>
               <NotificationCenter />
               <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
@@ -387,7 +387,7 @@ export function LogView() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="purple">ExposeNet log</Title>
+          <Title order={3} c="purple">All Log Rythm</Title>
           <Group>
             <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
