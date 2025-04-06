@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { MantineProvider, createTheme, AppShell, Group, Title } from '@mantine/core';
+import { MantineProvider, createTheme, AppShell, Group, Title, Text } from '@mantine/core';
 import { Notifications } from '@mantine/notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Login } from './pages/Login';
@@ -54,6 +54,7 @@ function AppContent() {
       <AppShell
         header={{ height: 60 }}
         padding="md"
+        footer={{ height: 60 }}
       >
         <AppShell.Header>
           <Group h="100%" px="md" justify="space-between">
@@ -102,6 +103,22 @@ function AppContent() {
             <Route path="/" element={<Navigate to="/login" replace />} />
           </Routes>
         </AppShell.Main>
+
+        <AppShell.Footer p="md">
+          <Group justify="center">
+            <Text size="sm" c="dimmed">
+              Developed by{' '}
+              <a 
+                href="https://github.com/np-nandanpatil" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ color: 'var(--mantine-color-purple-6)' }}
+              >
+                Nandan
+              </a>
+            </Text>
+          </Group>
+        </AppShell.Footer>
       </AppShell>
     </MantineProvider>
   );

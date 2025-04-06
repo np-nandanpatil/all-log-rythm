@@ -76,7 +76,7 @@ export function Dashboard() {
     >
       <AppShell.Header p="xs">
         <Group justify="space-between">
-          <Title order={3} c="indigo">ExposeNet log</Title>
+          <Title order={3} c="purple">ExposeNet log</Title>
           <Group>
             <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
@@ -88,7 +88,7 @@ export function Dashboard() {
 
       <AppShell.Main>
         <Container size="lg" py="xl">
-          <Title mb="xl" c="indigo">Welcome, {currentUser?.name}</Title>
+          <Title mb="xl" c="purple">Welcome, {currentUser?.name}</Title>
 
           <Group justify="space-between" mb="xl">
             <Title order={2}>All Logs</Title>

@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { password: _, ...userWithoutPassword } = user;
       
       console.log('Login successful for:', user.email);
-      setCurrentUser(userWithoutPassword);
+      setCurrentUser(userWithoutPassword as User);
       localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
     } finally {
       setLoading(false);
