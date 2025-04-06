@@ -12,7 +12,7 @@ export default defineConfig({
       usePolling: true
     }
   },
-  base: '/', // Use absolute paths for development
+  base: '/all-log-rythm/', // Use the repository name as the base path for GitHub Pages
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
