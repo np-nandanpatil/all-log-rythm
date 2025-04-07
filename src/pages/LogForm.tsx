@@ -208,6 +208,7 @@ export function LogForm() {
       status,
       createdBy: currentUser.id,
       createdByName: currentUser.name,
+      createdByUsername: currentUser.username,
       createdAt: formatDateForStorage(new Date()),
       updatedAt: formatDateForStorage(new Date())
     };
@@ -335,6 +336,7 @@ export function LogForm() {
           ...logData,
           createdBy: currentLog.createdBy,
           createdByName: currentLog.createdByName,
+          createdByUsername: currentLog.createdByUsername || currentUser.username,
           createdAt: currentLog.createdAt,
           comments: currentLog.comments || []
         };

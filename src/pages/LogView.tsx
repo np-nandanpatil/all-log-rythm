@@ -457,7 +457,7 @@ export function LogView() {
               </Text>
 
               <Text mb="md">
-                Created by: {log.createdByName}
+                Created by: {log.createdByName} ({log.createdByUsername || log.createdBy})
               </Text>
 
               <Group justify="flex-end">
