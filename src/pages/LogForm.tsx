@@ -12,7 +12,8 @@ import {
   Paper, 
   Text,
   /*Select,*/
-  AppShell
+  AppShell,
+  Box
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
@@ -20,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { formatDateForDisplay, formatDateForStorage, parseDateString, isDateInRange } from '../utils/dateHelpers';
+import { useMediaQuery } from '@mantine/hooks';
 
 export function LogForm() {
   const navigate = useNavigate();
@@ -38,6 +40,9 @@ export function LogForm() {
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [activityDateError, setActivityDateError] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
+
+  // Add media query for mobile
+  const isMobile = useMediaQuery('(max-width: 48em)');
 
   useEffect(() => {
     if (id) {
@@ -420,7 +425,7 @@ export function LogForm() {
         <Container size="md" py="xl">
           <Title mb="xl" c="purple">{id ? 'Edit Log' : 'Create New Log'}</Title>
 
-          <Paper withBorder shadow="md" p="xl" radius="md">
+          <Paper withBorder shadow="md" p={{ base: 'sm', sm: 'xl' }} radius="md">
             <form onSubmit={handleSubmit}>
               <Stack gap="md">
                 {/* Week number and date range section */}
@@ -436,24 +441,24 @@ export function LogForm() {
                     radius="md"
                   />
                   
-                  <Group grow align="flex-start" wrap="wrap">
-                    <div>
+                  <Group grow align="flex-start" wrap="wrap" gap="md">
+                    <Box w="100%" maw={isMobile ? "100%" : "48%"}>
                       <Text size="sm" fw={500} mb={5}>Start Date</Text>
                       <DatePicker
                         value={startDate}
                         onChange={handleStartDateChange}
-                        style={{ minWidth: '200px', flex: '1 1 200px' }}
+                        style={{ width: '100%' }}
                       />
                       {dateRangeError && <Text c="red" size="sm">{dateRangeError}</Text>}
-                    </div>
-                    <div>
+                    </Box>
+                    <Box w="100%" maw={isMobile ? "100%" : "48%"}>
                       <Text size="sm" fw={500} mb={5}>End Date</Text>
                       <DatePicker
                         value={endDate}
                         onChange={handleEndDateChange}
-                        style={{ minWidth: '200px', flex: '1 1 200px' }}
+                        style={{ width: '100%' }}
                       />
-                    </div>
+                    </Box>
                   </Group>
                 </Stack>
 
@@ -463,17 +468,17 @@ export function LogForm() {
                 )}
 
                 {activities.map((activity, index) => (
-                  <Paper key={index} withBorder p="md" radius="md">
+                  <Paper key={index} withBorder p={{ base: 'xs', sm: 'md' }} radius="md">
                     <Stack gap="md">
-                      <Group grow align="flex-start" wrap="wrap">
-                        <div>
+                      <Group grow align="flex-start" wrap="wrap" gap="md">
+                        <Box w="100%" maw={isMobile ? "100%" : "48%"}>
                           <Text size="sm" fw={500} mb={5}>Date</Text>
                           <DatePicker
                             value={activity.date}
                             onChange={(date) => handleActivityChange(index, 'date', date)}
-                            style={{ minWidth: '200px', flex: '1 1 200px' }}
+                            style={{ width: '100%' }}
                           />
-                        </div>
+                        </Box>
                         <NumberInput
                           label="Hours"
                           placeholder="Enter hours"
@@ -482,7 +487,7 @@ export function LogForm() {
                           value={activity.hours}
                           onChange={(value) => handleActivityChange(index, 'hours', value)}
                           radius="md"
-                          style={{ minWidth: '150px', flex: '1 1 150px' }}
+                          style={{ width: isMobile ? '100%' : undefined, flex: isMobile ? '1 1 100%' : '1 1 150px' }}
                         />
                       </Group>
                       <Group grow>

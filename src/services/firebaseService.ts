@@ -38,9 +38,26 @@ interface User {
 function convertActivityDates(activities: any[]): any[] {
   if (!activities || !Array.isArray(activities)) return [];
   
+  const convertToTimestamp = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try {
+      const date = new Date(dateStr);
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        0, 0, 0, 0
+      ));
+      return Timestamp.fromDate(utcDate);
+    } catch (error) {
+      console.error('Error converting activity date to timestamp:', error);
+      return null;
+    }
+  };
+  
   return activities.map(activity => ({
     ...activity,
-    date: activity.date ? Timestamp.fromDate(new Date(activity.date)) : null
+    date: convertToTimestamp(activity.date)
   }));
 }
 
@@ -48,12 +65,31 @@ function convertActivityDates(activities: any[]): any[] {
 function convertLogDates(log: any): any {
   if (!log) return log;
   
+  const convertToTimestamp = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try {
+      // Parse the ISO string to a Date object
+      const date = new Date(dateStr);
+      // Create a new date at midnight UTC
+      const utcDate = new Date(Date.UTC(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        0, 0, 0, 0
+      ));
+      return Timestamp.fromDate(utcDate);
+    } catch (error) {
+      console.error('Error converting date to timestamp:', error);
+      return null;
+    }
+  };
+  
   return {
     ...log,
-    startDate: log.startDate ? Timestamp.fromDate(new Date(log.startDate)) : null,
-    endDate: log.endDate ? Timestamp.fromDate(new Date(log.endDate)) : null,
-    createdAt: log.createdAt ? Timestamp.fromDate(new Date(log.createdAt)) : serverTimestamp(),
-    updatedAt: log.updatedAt ? Timestamp.fromDate(new Date(log.updatedAt)) : serverTimestamp()
+    startDate: convertToTimestamp(log.startDate),
+    endDate: convertToTimestamp(log.endDate),
+    createdAt: log.createdAt ? convertToTimestamp(log.createdAt) : serverTimestamp(),
+    updatedAt: serverTimestamp()
   };
 }
 
@@ -277,7 +313,18 @@ export const firebaseService = {
     try {
       const logData = convertLogToFirestore(log);
       const docRef = await addDoc(collection(db, 'logs'), logData);
-      return { id: docRef.id, ...log };
+      
+      // Fetch the saved document to ensure we have the correct Firestore timestamps
+      const savedDoc = await getDoc(docRef);
+      if (!savedDoc.exists()) {
+        throw new Error('Failed to retrieve saved log');
+      }
+      
+      // Convert the Firestore document back to a log object with proper dates
+      return convertLogFromFirestore({
+        id: docRef.id,
+        data: () => savedDoc.data()
+      });
     } catch (error) {
       console.error('Error creating log:', error);
       throw error;
@@ -289,7 +336,18 @@ export const firebaseService = {
       const logData = convertLogToFirestore(log);
       const docRef = doc(db, 'logs', id);
       await updateDoc(docRef, logData);
-      return { id, ...log };
+      
+      // Fetch the updated document to ensure we have the correct Firestore timestamps
+      const updatedDoc = await getDoc(docRef);
+      if (!updatedDoc.exists()) {
+        throw new Error('Failed to retrieve updated log');
+      }
+      
+      // Convert the Firestore document back to a log object with proper dates
+      return convertLogFromFirestore({
+        id,
+        data: () => updatedDoc.data()
+      });
     } catch (error) {
       console.error('Error updating log:', error);
       throw error;

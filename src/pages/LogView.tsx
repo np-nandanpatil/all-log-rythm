@@ -68,8 +68,12 @@ export function LogView() {
     setSubmitting(true);
     
     try {
+      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: newStatus,
+        // Don't change the dates, only update the status
+        startDate: log.startDate,
+        endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
@@ -113,8 +117,12 @@ export function LogView() {
         }
       }
       
+      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: nextStatus,
+        // Don't change the dates, only update the status
+        startDate: log.startDate,
+        endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
@@ -241,6 +249,9 @@ export function LogView() {
       // Update log status to needs-revision
       const finalUpdatedLog = await dataServiceAdapter.updateLog(id!, {
         status: 'needs-revision',
+        // Don't change the dates, only update the status
+        startDate: log.startDate,
+        endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
@@ -271,8 +282,12 @@ export function LogView() {
     setSubmitting(true);
     
     try {
+      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: 'pending-lead',
+        // Don't change the dates, only update the status
+        startDate: log.startDate,
+        endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
