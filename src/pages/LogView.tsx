@@ -20,6 +20,16 @@ import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
 import { NotificationCenter } from '../components/NotificationCenter';
 
+// Helper function to format date consistently
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+};
+
 export function LogView() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -428,7 +438,7 @@ export function LogView() {
               </Group>
 
               <Text size="sm" c="dimmed" mb="md">
-                {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
+                {formatDate(log.startDate)} - {formatDate(log.endDate)}
               </Text>
 
               <Text mb="md">

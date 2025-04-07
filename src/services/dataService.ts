@@ -14,12 +14,77 @@ function loadFromStorage(key: string) {
 
 // Helper to check if two date ranges overlap
 function dateRangesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
-  const startDate1 = new Date(start1);
-  const endDate1 = new Date(end1);
-  const startDate2 = new Date(start2);
-  const endDate2 = new Date(end2);
-  
-  return (startDate1 <= endDate2 && startDate2 <= endDate1);
+  try {
+    const startDate1 = new Date(start1);
+    const endDate1 = new Date(end1);
+    const startDate2 = new Date(start2);
+    const endDate2 = new Date(end2);
+    
+    // Validate dates
+    if (isNaN(startDate1.getTime()) || isNaN(endDate1.getTime()) || 
+        isNaN(startDate2.getTime()) || isNaN(endDate2.getTime())) {
+      return false;
+    }
+    
+    // Set all dates to start of day for consistent comparison
+    startDate1.setUTCHours(0, 0, 0, 0);
+    endDate1.setUTCHours(0, 0, 0, 0);
+    startDate2.setUTCHours(0, 0, 0, 0);
+    endDate2.setUTCHours(0, 0, 0, 0);
+    
+    return (startDate1 <= endDate2 && startDate2 <= endDate1);
+  } catch (error) {
+    console.error('Error in dateRangesOverlap:', error);
+    return false;
+  }
+}
+
+// Helper to format date consistently
+function formatDate(dateString: string | Date): string {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    // Use UTC date to avoid timezone issues
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC'
+    }).format(date);
+  } catch (error) {
+    return 'Invalid Date';
+  }
+}
+
+// Helper to validate and parse date
+function parseDate(dateString: string): Date | null {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return null;
+    }
+    date.setUTCHours(0, 0, 0, 0);
+    return date;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Helper to ensure consistent date format
+function normalizeDate(date: string | Date): string {
+  try {
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) {
+      throw new Error('Invalid date');
+    }
+    parsed.setUTCHours(0, 0, 0, 0);
+    return parsed.toISOString();
+  } catch (error) {
+    console.error('Error normalizing date:', error);
+    return new Date().toISOString();
+  }
 }
 
 // Initialize localStorage with our JSON data if not already present
@@ -85,13 +150,21 @@ export const dataService = {
 
   // Validate activity dates are within log date range
   validateActivityDates(activities: any[], startDate: string, endDate: string) {
-    const logStartDate = new Date(startDate);
-    const logEndDate = new Date(endDate);
+    const logStartDate = parseDate(startDate);
+    const logEndDate = parseDate(endDate);
+    
+    if (!logStartDate || !logEndDate) {
+      throw new Error('Invalid log date range');
+    }
     
     for (const activity of activities) {
-      const activityDate = new Date(activity.date);
+      const activityDate = parseDate(activity.date);
+      if (!activityDate) {
+        throw new Error('Invalid activity date');
+      }
+      
       if (activityDate < logStartDate || activityDate > logEndDate) {
-        throw new Error(`Activity date ${activityDate.toLocaleDateString()} is outside the log date range (${logStartDate.toLocaleDateString()} - ${logEndDate.toLocaleDateString()})`);
+        throw new Error(`Activity date ${formatDate(activityDate)} is outside the log date range (${formatDate(logStartDate)} - ${formatDate(logEndDate)})`);
       }
     }
   },
@@ -128,55 +201,77 @@ export const dataService = {
     const index = logs.findIndex((log: any) => log.id === id);
     
     if (index !== -1) {
+      const currentLog = logs[index];
+      
       // Check if week number already exists (excluding the current log)
-      if (updates.weekNumber && this.isWeekNumberExists(updates.weekNumber, id)) {
+      if (updates.weekNumber && updates.weekNumber !== currentLog.weekNumber && 
+          this.isWeekNumberExists(updates.weekNumber, id)) {
         throw new Error(`Week ${updates.weekNumber} log already exists. Please choose a different week.`);
       }
       
-      // Check if date range overlaps with any existing log (excluding the current log)
-      if (updates.startDate && updates.endDate && this.isDateRangeOverlapping(updates.startDate, updates.endDate, id)) {
-        throw new Error(`The date range overlaps with an existing log. Please choose a different date range.`);
+      // Ensure we have valid dates and normalize them
+      const startDate = updates.startDate ? normalizeDate(updates.startDate) : currentLog.startDate;
+      const endDate = updates.endDate ? normalizeDate(updates.endDate) : currentLog.endDate;
+      
+      // Validate dates
+      if (!startDate || !endDate) {
+        throw new Error('Invalid date range: start date and end date are required');
       }
       
-      // Validate activity dates are within log date range
-      if (updates.activities && updates.startDate && updates.endDate) {
-        this.validateActivityDates(updates.activities, updates.startDate, updates.endDate);
+      // Check for date range overlaps only if dates are being changed
+      if ((updates.startDate || updates.endDate) && 
+          (startDate !== currentLog.startDate || endDate !== currentLog.endDate)) {
+        if (this.isDateRangeOverlapping(startDate, endDate, id)) {
+          throw new Error(`The date range overlaps with an existing log. Please choose a different date range.`);
+        }
       }
       
-      const oldStatus = logs[index].status;
-      const newStatus = updates.status || oldStatus;
+      // Handle activities update
+      const activities = updates.activities || currentLog.activities;
+      if (activities) {
+        // Normalize activity dates
+        const validatedActivities = activities.map((activity: any) => ({
+          ...activity,
+          date: normalizeDate(activity.date || new Date())
+        }));
+        
+        // Validate activity dates against log date range
+        this.validateActivityDates(validatedActivities, startDate, endDate);
+        
+        // Update activities with normalized dates
+        updates.activities = validatedActivities;
+      }
       
-      logs[index] = {
-        ...logs[index],
+      // Create the updated log object
+      const updatedLog = {
+        ...currentLog,
         ...updates,
+        weekNumber: updates.weekNumber || currentLog.weekNumber,
+        startDate: startDate,
+        endDate: endDate,
         updatedAt: new Date().toISOString()
       };
       
+      logs[index] = updatedLog;
       saveToStorage('logs', logs);
       
-      // Create notification if status changed to needs-revision
-      if (newStatus === 'needs-revision' && oldStatus !== 'needs-revision') {
-        // Get the latest comment which should be the revision request
-        const latestComment = logs[index].comments && logs[index].comments.length > 0 
-          ? logs[index].comments[logs[index].comments.length - 1] 
+      // Handle notifications for status changes
+      if (updates.status === 'needs-revision' && currentLog.status !== 'needs-revision') {
+        const latestComment = updatedLog.comments && updatedLog.comments.length > 0 
+          ? updatedLog.comments[updatedLog.comments.length - 1] 
           : null;
         
         this.createNotification({
-          userId: logs[index].createdBy,
+          userId: updatedLog.createdBy,
           title: 'Log Needs Revision',
-          message: `Your Week ${logs[index].weekNumber} log needs revisions. ${latestComment ? `Reason: ${latestComment.text}` : ''}`,
+          message: `Your Week ${updatedLog.weekNumber} log needs revisions. ${latestComment ? `Reason: ${latestComment.text}` : ''}`,
           logId: id,
           read: false,
           createdAt: new Date().toISOString()
         });
       }
       
-      // Create notification if status changed from needs-revision to pending-lead or pending-guide
-      if ((newStatus === 'pending-lead' || newStatus === 'pending-guide') && oldStatus === 'needs-revision') {
-        // We'll handle this in the LogView component instead
-      }
-      
-      return logs[index];
+      return updatedLog;
     }
     return null;
   },

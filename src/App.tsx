@@ -64,7 +64,7 @@ function AppContent() {
       </AppShell.Header>
 
       <AppShell.Main>
-        <Routes>
+        <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Route path="/login" element={<Login />} />
           <Route
             path="/dashboard"

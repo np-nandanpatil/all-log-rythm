@@ -6,6 +6,29 @@ import { dataServiceAdapter } from '../services';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { notifications } from '@mantine/notifications';
 
+// Helper function to format date safely
+const formatDate = (dateString: string): string => {
+  try {
+    if (!dateString) return 'Invalid Date';
+    
+    // Parse the ISO date string
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    
+    // Format using the browser's locale
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  } catch (error) {
+    console.error('Error formatting date:', error, 'for date string:', dateString);
+    return 'Invalid Date';
+  }
+};
+
 export function Dashboard() {
   const navigate = useNavigate();
   const { currentUser, signOut } = useAuth();
@@ -18,7 +41,10 @@ export function Dashboard() {
         try {
           // Get all logs for everyone to view
           const allLogs = await dataServiceAdapter.getLogs();
-          setLogs(allLogs);
+          
+          // Sort logs by week number
+          const sortedLogs = allLogs.sort((a: any, b: any) => a.weekNumber - b.weekNumber);
+          setLogs(sortedLogs);
         } catch (error) {
           console.error('Error fetching logs:', error);
         } finally {
@@ -157,7 +183,7 @@ export function Dashboard() {
                   </Group>
                   
                   <Text size="sm" c="dimmed" mb="md">
-                    {new Date(log.startDate).toLocaleDateString()} - {new Date(log.endDate).toLocaleDateString()}
+                    {formatDate(log.startDate)} - {formatDate(log.endDate)}
                   </Text>
                   
                   <Text mb="md">

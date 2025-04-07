@@ -15,6 +15,7 @@ import {
 import { db } from '../config/firebase';
 import usersData from '../data/users.json';
 import logsData from '../data/logs.json';
+import { firestoreTimestampToDate } from '../utils/dateHelpers';
 
 interface User {
   id: string;
@@ -25,87 +26,83 @@ interface User {
 }
 
 // Helper functions for date conversion
-const timestampToISOString = (timestamp: any): string => {
-  if (!timestamp) return '';
-  if (timestamp.toDate) {
-    return timestamp.toDate().toISOString();
-  }
-  return timestamp;
-};
-
-const isoStringToTimestamp = (isoString: string): any => {
-  if (!isoString) return serverTimestamp();
-  return Timestamp.fromDate(new Date(isoString));
-};
+// const timestampToISOString = (timestamp: any): string => {
+//   if (!timestamp) return '';
+//   if (timestamp.toDate) {
+//     return timestamp.toDate().toISOString();
+//   }
+//   return timestamp;
+// };
 
 // Helper to convert activity dates to Timestamps
-const convertActivityDates = (activities: any[]) => {
+function convertActivityDates(activities: any[]): any[] {
+  if (!activities || !Array.isArray(activities)) return [];
+  
   return activities.map(activity => ({
     ...activity,
-    date: isoStringToTimestamp(activity.date)
+    date: activity.date ? Timestamp.fromDate(new Date(activity.date)) : null
   }));
-};
+}
 
 // Helper to convert log dates to Timestamps
-const convertLogDates = (log: any) => {
+function convertLogDates(log: any): any {
+  if (!log) return log;
+  
   return {
     ...log,
-    startDate: isoStringToTimestamp(log.startDate),
-    endDate: isoStringToTimestamp(log.endDate),
-    createdAt: log.createdAt ? isoStringToTimestamp(log.createdAt) : serverTimestamp(),
-    updatedAt: serverTimestamp(),
-    activities: convertActivityDates(log.activities)
+    startDate: log.startDate ? Timestamp.fromDate(new Date(log.startDate)) : null,
+    endDate: log.endDate ? Timestamp.fromDate(new Date(log.endDate)) : null,
+    createdAt: log.createdAt ? Timestamp.fromDate(new Date(log.createdAt)) : serverTimestamp(),
+    updatedAt: log.updatedAt ? Timestamp.fromDate(new Date(log.updatedAt)) : serverTimestamp()
   };
-};
+}
+
+// Helper to convert log to Firestore format
+function convertLogToFirestore(log: any): any {
+  if (!log) return null;
+  
+  const data = { ...log };
+  delete data.id;
+  
+  // Convert dates to Timestamps
+  const convertedData = convertLogDates(data);
+  
+  // Convert activity dates to Timestamps
+  if (data.activities && Array.isArray(data.activities)) {
+    convertedData.activities = convertActivityDates(data.activities);
+  }
+  
+  return convertedData;
+}
 
 // Helper to convert Firestore document to log object
-const docToLog = (doc: any) => {
+function convertLogFromFirestore(doc: any): any {
+  if (!doc) return null;
+  
   const data = doc.data();
   return {
     id: doc.id,
     ...data,
-    startDate: timestampToISOString(data.startDate),
-    endDate: timestampToISOString(data.endDate),
-    createdAt: timestampToISOString(data.createdAt),
-    updatedAt: timestampToISOString(data.updatedAt),
-    activities: data.activities.map((activity: any) => ({
+    startDate: data.startDate ? firestoreTimestampToDate(data.startDate) : null,
+    endDate: data.endDate ? firestoreTimestampToDate(data.endDate) : null,
+    createdAt: data.createdAt ? firestoreTimestampToDate(data.createdAt) : null,
+    updatedAt: data.updatedAt ? firestoreTimestampToDate(data.updatedAt) : null,
+    activities: data.activities?.map((activity: any) => ({
       ...activity,
-      date: timestampToISOString(activity.date)
-    }))
-  };
-};
-
-// Helper to convert log data structure
-function convertLogData(log: any): any {
-  return {
-    ...log,
-    startDate: isoStringToTimestamp(log.startDate),
-    endDate: isoStringToTimestamp(log.endDate),
-    createdAt: log.createdAt ? isoStringToTimestamp(log.createdAt) : serverTimestamp(),
-    updatedAt: log.updatedAt ? isoStringToTimestamp(log.updatedAt) : serverTimestamp(),
-    activities: log.activities.map((activity: any) => ({
-      ...activity,
-      date: isoStringToTimestamp(activity.date)
-    }))
+      date: activity.date ? firestoreTimestampToDate(activity.date) : null
+    })) || []
   };
 }
 
-// Helper to convert log data from Firestore
-function convertLogFromFirestore(log: any): any {
-  if (!log) return null;
+// Helper to convert Firestore document to user object
+function convertUserFromFirestore(doc: any): any {
+  if (!doc) return null;
   
-  const data = log.data();
+  const data = doc.data();
   return {
-    id: log.id,
+    id: doc.id,
     ...data,
-    startDate: timestampToISOString(data.startDate),
-    endDate: timestampToISOString(data.endDate),
-    createdAt: timestampToISOString(data.createdAt),
-    updatedAt: timestampToISOString(data.updatedAt),
-    activities: data.activities.map((activity: any) => ({
-      ...activity,
-      date: timestampToISOString(activity.date)
-    }))
+    createdAt: data.createdAt ? Timestamp.fromDate(new Date(data.createdAt)) : null
   };
 }
 
@@ -169,13 +166,9 @@ export const firebaseService = {
     try {
       const logsRef = collection(db, 'logs');
       const snapshot = await getDocs(logsRef);
-      return snapshot.docs.map(doc => ({
-        ...doc.data(),
+      return snapshot.docs.map(doc => convertLogFromFirestore({
         id: doc.id,
-        createdAt: timestampToISOString(doc.data().createdAt),
-        updatedAt: timestampToISOString(doc.data().updatedAt),
-        startDate: timestampToISOString(doc.data().startDate),
-        endDate: timestampToISOString(doc.data().endDate)
+        data: () => doc.data()
       }));
     } catch (error) {
       console.error('Error getting logs:', error);
@@ -188,13 +181,9 @@ export const firebaseService = {
       const logsRef = collection(db, 'logs');
       const q = query(logsRef, where('createdBy', '==', userId));
       const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        ...doc.data(),
+      return snapshot.docs.map(doc => convertLogFromFirestore({
         id: doc.id,
-        createdAt: timestampToISOString(doc.data().createdAt),
-        updatedAt: timestampToISOString(doc.data().updatedAt),
-        startDate: timestampToISOString(doc.data().startDate),
-        endDate: timestampToISOString(doc.data().endDate)
+        data: () => doc.data()
       }));
     } catch (error) {
       console.error('Error getting user logs:', error);
@@ -284,41 +273,23 @@ export const firebaseService = {
     }
   },
 
-  async createLog(logData: any) {
+  async createLog(log: any) {
     try {
-      const logsRef = collection(db, 'logs');
-      const data = {
-        ...logData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        startDate: isoStringToTimestamp(logData.startDate),
-        endDate: isoStringToTimestamp(logData.endDate)
-      };
-      const docRef = await addDoc(logsRef, data);
-      return {
-        ...data,
-        id: docRef.id
-      };
+      const logData = convertLogToFirestore(log);
+      const docRef = await addDoc(collection(db, 'logs'), logData);
+      return { id: docRef.id, ...log };
     } catch (error) {
       console.error('Error creating log:', error);
       throw error;
     }
   },
 
-  async updateLog(logId: string, logData: any) {
+  async updateLog(id: string, log: any) {
     try {
-      const logRef = doc(db, 'logs', logId);
-      const data = {
-        ...logData,
-        updatedAt: serverTimestamp(),
-        startDate: isoStringToTimestamp(logData.startDate),
-        endDate: isoStringToTimestamp(logData.endDate)
-      };
-      await updateDoc(logRef, data);
-      return {
-        ...data,
-        id: logId
-      };
+      const logData = convertLogToFirestore(log);
+      const docRef = doc(db, 'logs', id);
+      await updateDoc(docRef, logData);
+      return { id, ...log };
     } catch (error) {
       console.error('Error updating log:', error);
       throw error;
@@ -370,7 +341,7 @@ export const firebaseService = {
       return snapshot.docs.map(doc => ({
         ...doc.data(),
         id: doc.id,
-        createdAt: timestampToISOString(doc.data().createdAt)
+        createdAt: doc.data().createdAt ? firestoreTimestampToDate(doc.data().createdAt) : null
       }));
     } catch (error) {
       console.error('Error getting notifications:', error);
