@@ -63,7 +63,7 @@ function AppContent() {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Main>
+      {/* <AppShell.Main>
         <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Route path="/login" element={<Login />} />
           <Route
@@ -100,7 +100,46 @@ function AppContent() {
           />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
-      </AppShell.Main>
+      </AppShell.Main> */}
+
+<AppShell.Main>
+  <Routes>
+    <Route path="/login" element={<Login />} />
+    <Route
+      path="/dashboard"
+      element={
+        <ProtectedRoute>
+          <Dashboard />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/logs/new"
+      element={
+        <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+          <LogForm />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/logs/:id"
+      element={
+        <ProtectedRoute>
+          <LogView />
+        </ProtectedRoute>
+      }
+    />
+    <Route
+      path="/logs/:id/edit"
+      element={
+        <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+          <LogForm />
+        </ProtectedRoute>
+      }
+    />
+    <Route path="/" element={<Navigate to="/login" replace />} />
+  </Routes>
+</AppShell.Main>
 
       <AppShell.Footer p="md">
         <Group justify="center">
