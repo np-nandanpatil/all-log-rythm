@@ -206,9 +206,21 @@ function AppContent() {
       </AppShell.Main>
 
       <AppShell.Footer p="md">
-        <Group justify="center">
+        <Group justify="center" align="center" gap="md">
           <Text size="sm" c="dimmed">
             Developed by{' '}
+            <img 
+              src="public/Logo-white.png" 
+              alt="Logo" 
+              style={{ 
+                height: '24px', 
+                width: '24px',
+                borderRadius: '50%',
+                objectFit: 'cover',
+                verticalAlign: 'middle',
+                margin: '0 4px'
+              }} 
+            />
             <a 
               href="https://github.com/np-nandanpatil" 
               target="_blank" 

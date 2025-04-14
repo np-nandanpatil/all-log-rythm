@@ -11,15 +11,11 @@ import {
   Badge, 
   Divider,
   Textarea,
-  // ActionIcon,
-  // Menu,
   AppShell
 } from '@mantine/core';
-import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
 
-// Helper function to format date consistently
 const formatDate = (dateString: string): string => {
   const date = new Date(dateString);
   return date.toLocaleDateString('en-US', {
@@ -48,11 +44,7 @@ export function LogView() {
         if (logData) {
           setLog(logData);
         } else {
-          notifications.show({
-            title: 'Error',
-            message: 'Log not found',
-            color: 'red'
-          });
+          alert('Log not found');
           navigate('/dashboard');
         }
         setLoading(false);
@@ -67,29 +59,18 @@ export function LogView() {
     setSubmitting(true);
     
     try {
-      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: newStatus,
-        // Don't change the dates, only update the status
         startDate: log.startDate,
         endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
       setLog(updatedLog);
-      
-      notifications.show({
-        title: 'Success',
-        message: `Log status updated to ${getLogStatusText(newStatus)}`,
-        color: 'green'
-      });
+      alert(`Log status updated to ${getLogStatusText(newStatus)}`);
     } catch (error) {
       console.error('Error updating log status:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to update log status',
-        color: 'red'
-      });
+      alert('Failed to update log status');
     } finally {
       setSubmitting(false);
     }
@@ -101,12 +82,8 @@ export function LogView() {
     setSubmitting(true);
     
     try {
-      // Determine the next status based on the current status
       let nextStatus = 'pending-lead';
       if (log.status === 'needs-revision') {
-        // If it was previously approved by team lead, go back to team lead
-        // If it was previously approved by guide, go back to guide
-        // If it was previously approved by coordinator, go back to guide
         const lastApprover = log.comments && log.comments.length > 0 
           ? log.comments[log.comments.length - 1].userRole 
           : null;
@@ -116,29 +93,18 @@ export function LogView() {
         }
       }
       
-      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: nextStatus,
-        // Don't change the dates, only update the status
         startDate: log.startDate,
         endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
       setLog(updatedLog);
-      
-      notifications.show({
-        title: 'Success',
-        message: `Log resubmitted for review`,
-        color: 'green'
-      });
+      alert('Log resubmitted for review');
     } catch (error) {
       console.error('Error resubmitting log:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to resubmit log',
-        color: 'red'
-      });
+      alert('Failed to resubmit log');
     } finally {
       setSubmitting(false);
     }
@@ -211,19 +177,10 @@ export function LogView() {
       setLog(updatedLog);
       setComment('');
       setShowCommentForm(false);
-      
-      notifications.show({
-        title: 'Success',
-        message: 'Comment added successfully',
-        color: 'green'
-      });
+      alert('Comment added successfully');
     } catch (error) {
       console.error('Error adding comment:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to add comment',
-        color: 'red'
-      });
+      alert('Failed to add comment');
     } finally {
       setSubmitting(false);
     }
@@ -245,10 +202,8 @@ export function LogView() {
       
       const updatedLog = await dataServiceAdapter.addComment(id!, newComment);
       
-      // Update log status to needs-revision
       const finalUpdatedLog = await dataServiceAdapter.updateLog(id!, {
         status: 'needs-revision',
-        // Don't change the dates, only update the status
         startDate: log.startDate,
         endDate: log.endDate,
         updatedAt: new Date().toISOString()
@@ -257,19 +212,10 @@ export function LogView() {
       setLog(finalUpdatedLog);
       setRevisionMessage('');
       setShowRevisionForm(false);
-      
-      notifications.show({
-        title: 'Success',
-        message: 'Revision requested successfully',
-        color: 'green'
-      });
+      alert('Revision requested successfully');
     } catch (error) {
       console.error('Error requesting revision:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to request revision',
-        color: 'red'
-      });
+      alert('Failed to request revision');
     } finally {
       setSubmitting(false);
     }
@@ -281,29 +227,18 @@ export function LogView() {
     setSubmitting(true);
     
     try {
-      // Preserve existing log data, only update the status
       const updatedLog = await dataServiceAdapter.updateLog(id!, {
         status: 'pending-lead',
-        // Don't change the dates, only update the status
         startDate: log.startDate,
         endDate: log.endDate,
         updatedAt: new Date().toISOString()
       });
       
       setLog(updatedLog);
-      
-      notifications.show({
-        title: 'Success',
-        message: 'Log submitted for review',
-        color: 'green'
-      });
+      alert('Log submitted for review');
     } catch (error) {
       console.error('Error submitting log for review:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to submit log for review',
-        color: 'red'
-      });
+      alert('Failed to submit log for review');
     } finally {
       setSubmitting(false);
     }
@@ -325,21 +260,11 @@ export function LogView() {
     
     try {
       await dataServiceAdapter.deleteLog(id!);
-      
-      notifications.show({
-        title: 'Success',
-        message: 'Log deleted successfully',
-        color: 'green'
-      });
-      
+      alert('Log deleted successfully');
       navigate('/dashboard');
     } catch (error) {
       console.error('Error deleting log:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to delete log',
-        color: 'red'
-      });
+      alert('Failed to delete log');
     } finally {
       setSubmitting(false);
     }
@@ -395,7 +320,6 @@ export function LogView() {
     );
   }
 
-  // Ensure activities is always an array
   const activities = log.activities || [];
 
   return (
@@ -417,7 +341,6 @@ export function LogView() {
       <AppShell.Main>
         <Container size="md" py="xl">
           <Stack gap="lg">
-            {/* Back to Dashboard button */}
             <Button 
               onClick={() => navigate('/dashboard')}
               variant="light"
@@ -429,7 +352,6 @@ export function LogView() {
               Back to Dashboard
             </Button>
             
-            {/* Log header section */}
             <Paper withBorder shadow="md" p="xl" radius="md">
               <Group justify="space-between" mb="md">
                 <Title order={2}>Week {log.weekNumber}</Title>
@@ -481,7 +403,6 @@ export function LogView() {
               </Group>
             </Paper>
 
-            {/* Activities section */}
             <Paper withBorder shadow="md" p="xl" radius="md">
               <Title order={3} mb="lg">Activities</Title>
               <Stack gap="md">

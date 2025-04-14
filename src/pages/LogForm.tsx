@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Container, 
   Title, 
-  /*TextInput,*/ 
   NumberInput, 
   Button, 
   Group, 
@@ -11,12 +10,10 @@ import {
   Textarea, 
   Paper, 
   Text,
-  /*Select,*/
   AppShell,
   Box
 } from '@mantine/core';
 import { DatePicker } from '@mantine/dates';
-import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
 import { formatDateForDisplay, formatDateForStorage, parseDateString, isDateInRange } from '../utils/dateHelpers';
@@ -39,8 +36,6 @@ export function LogForm() {
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [activityDateError, setActivityDateError] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
-
-  // Add media query for mobile
   const isMobile = useMediaQuery('(max-width: 48em)');
 
   useEffect(() => {
@@ -49,15 +44,11 @@ export function LogForm() {
         const log = await dataServiceAdapter.getLogById(id);
         if (log) {
           setWeekNumber(log.weekNumber);
-          // Parse dates safely
           const parsedStartDate = parseDateString(log.startDate);
           const parsedEndDate = parseDateString(log.endDate);
-          
           setStartDate(parsedStartDate);
           setEndDate(parsedEndDate);
           setLogStatus(log.status);
-          
-          // Parse activity dates safely
           setActivities(log.activities.map((activity: any) => ({
             date: parseDateString(activity.date),
             hours: activity.hours,
@@ -82,7 +73,6 @@ export function LogForm() {
   const handleActivityChange = (index: number, field: string, value: any) => {
     const newActivities = [...activities];
     if (field === 'date') {
-      // Ensure date is properly formatted
       const parsedDate = parseDateString(value);
       newActivities[index] = { ...newActivities[index], [field]: parsedDate };
     } else {
@@ -90,7 +80,6 @@ export function LogForm() {
     }
     setActivities(newActivities);
     
-    // Validate activity date is within log date range
     if (field === 'date' && value && startDate && endDate) {
       const activityDate = parseDateString(value);
       if (activityDate && (activityDate < startDate || activityDate > endDate)) {
@@ -125,7 +114,6 @@ export function LogForm() {
 
   const checkDateRangeOverlap = async (start: Date | null, end: Date | null): Promise<boolean> => {
     if (!start || !end) return false;
-    
     try {
       return await dataServiceAdapter.isDateRangeOverlapping(
         formatDateForStorage(start),
@@ -150,7 +138,6 @@ export function LogForm() {
         setDateRangeError(null);
       }
       
-      // Validate activity dates are within new date range
       activities.forEach(activity => {
         if (activity.date) {
           const activityDate = parseDateString(activity.date);
@@ -176,7 +163,6 @@ export function LogForm() {
         setDateRangeError(null);
       }
       
-      // Validate activity dates are within new date range
       activities.forEach(activity => {
         if (activity.date) {
           const activityDate = parseDateString(activity.date);
@@ -216,30 +202,13 @@ export function LogForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!startDate || !endDate) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please select both start and end dates',
-        color: 'red'
-      });
-      return;
-    }
-
-    if (!currentUser?.id || !currentUser?.name) {
-      notifications.show({
-        title: 'Error',
-        message: 'User information is missing',
-        color: 'red'
-      });
+    if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
+      alert('Please fill in all required fields');
       return;
     }
 
     if (activities.some(activity => !activity.date || !activity.description)) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please fill in all activity details',
-        color: 'red'
-      });
+      alert('Please fill in all activity details');
       return;
     }
 
@@ -259,78 +228,42 @@ export function LogForm() {
         } else {
           await dataServiceAdapter.updateLog(id, logData);
         }
-        notifications.show({
-          title: 'Success',
-          message: 'Log updated successfully',
-          color: 'green'
-        });
       } else {
         await dataServiceAdapter.createLog(logData);
-        notifications.show({
-          title: 'Success',
-          message: 'Log created successfully',
-          color: 'green'
-        });
       }
 
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Error saving log:', error);
-      notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to save log',
-        color: 'red'
-      });
+      alert(error.message || 'Failed to save log');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmitForReview = async () => {
-    if (!startDate || !endDate) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please select both start and end dates',
-        color: 'red'
-      });
-      return;
-    }
-
-    if (!currentUser?.id || !currentUser?.name) {
-      notifications.show({
-        title: 'Error',
-        message: 'User information is missing',
-        color: 'red'
-      });
+    if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
+      alert('Please fill in all required fields');
       return;
     }
 
     if (activities.some(activity => !activity.date || !activity.description)) {
-      notifications.show({
-        title: 'Error',
-        message: 'Please fill in all activity details',
-        color: 'red'
-      });
+      alert('Please fill in all activity details');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Use createLogData to ensure consistent date handling
       const logData = createLogData('pending-lead');
-
-      console.log('Preparing log data:', logData);
 
       let savedLog;
       if (id) {
-        // If updating existing log
         const currentLog = await dataServiceAdapter.getLogById(id);
         if (!currentLog) {
           throw new Error('Log not found');
         }
 
-        // Keep only the metadata from current log
         const updateData = {
           ...logData,
           createdBy: currentLog.createdBy,
@@ -340,35 +273,19 @@ export function LogForm() {
           comments: currentLog.comments || []
         };
 
-        console.log('Updating log with:', updateData);
         savedLog = await dataServiceAdapter.updateLog(id, updateData);
       } else {
-        console.log('Creating new log with:', logData);
         savedLog = await dataServiceAdapter.createLog(logData);
       }
 
-      // Verify the saved data
       if (!savedLog || !savedLog.startDate || !savedLog.endDate) {
-        console.error('Saved log validation failed:', savedLog);
         throw new Error('Failed to save log with valid dates');
       }
-
-      console.log('Successfully saved log:', savedLog);
-
-      notifications.show({
-        title: 'Success',
-        message: 'Log submitted for review',
-        color: 'green'
-      });
 
       navigate('/dashboard');
     } catch (error: any) {
       console.error('Error submitting log for review:', error);
-      notifications.show({
-        title: 'Error',
-        message: error.message || 'Failed to submit log for review',
-        color: 'red'
-      });
+      alert(error.message || 'Failed to submit log for review');
     } finally {
       setLoading(false);
     }
@@ -379,7 +296,6 @@ export function LogForm() {
     navigate('/login');
   };
 
-  // Update the activity date validation
   const validateActivityDate = (date: Date) => {
     if (!startDate || !endDate) return true;
     const start = startDate instanceof Date ? startDate : new Date(startDate);
@@ -387,16 +303,11 @@ export function LogForm() {
     return isDateInRange(date, start, end);
   };
 
-  // Update the activity date change handler
   const handleActivityDateChange = (index: number, date: Date | null) => {
     if (!date) return;
     
     if (!validateActivityDate(date)) {
-      notifications.show({
-        title: 'Error',
-        message: `Activity date must be between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`,
-        color: 'red'
-      });
+      alert(`Activity date must be between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`);
       return;
     }
 
@@ -428,7 +339,6 @@ export function LogForm() {
           <Paper withBorder shadow="md" p={{ base: 'sm', sm: 'xl' }} radius="md">
             <form onSubmit={handleSubmit}>
               <Stack gap="md">
-                {/* Week number and date range section */}
                 <Stack gap="md">
                   <NumberInput
                     label="Week Number"
