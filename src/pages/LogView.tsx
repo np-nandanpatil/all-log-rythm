@@ -18,7 +18,6 @@ import {
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
-import { NotificationCenter } from '../components/NotificationCenter';
 
 // Helper function to format date consistently
 const formatDate = (dateString: string): string => {
@@ -356,7 +355,6 @@ export function LogView() {
           <Group justify="space-between">
             <Title order={3}>All Log Rythm</Title>
             <Group>
-              <NotificationCenter />
               <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
                 Sign Out
               </Button>
@@ -382,7 +380,6 @@ export function LogView() {
           <Group justify="space-between">
             <Title order={3}>All Log Rythm</Title>
             <Group>
-              <NotificationCenter />
               <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
                 Sign Out
               </Button>
@@ -410,17 +407,6 @@ export function LogView() {
         <Group justify="space-between">
           <Title order={3} c="purple">All Log Rythm</Title>
           <Group>
-            <NotificationCenter />
-            <Button 
-              onClick={() => navigate('/dashboard')}
-              variant="light"
-              color="indigo"
-              radius="md"
-              leftSection={<span>←</span>}
-              mb="md"
-            >
-              Back to Dashboard
-            </Button>
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
               Sign Out
             </Button>

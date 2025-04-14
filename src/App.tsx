@@ -1,15 +1,12 @@
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { MantineProvider, createTheme, AppShell, Group, Title, Text } from '@mantine/core';
-import { Notifications } from '@mantine/notifications';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Login from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { NotificationCenter } from './components/NotificationCenter';
 import { LogForm } from './pages/LogForm';
 import { LogView } from './pages/LogView';
 import '@mantine/core/styles.css';
-import '@mantine/notifications/styles.css';
 import '@mantine/dates/styles.css';
 
 // Create a theme instance
@@ -166,9 +163,6 @@ function AppContent() {
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between">
           <Title order={3} c="purple">All Log Rythm</Title>
-          <Group>
-            {currentUser && <NotificationCenter />}
-          </Group>
         </Group>
       </AppShell.Header>
 
@@ -233,7 +227,6 @@ function AppContent() {
 function App() {
   return (
     <MantineProvider theme={theme} defaultColorScheme="dark">
-      <Notifications />
       <Router>
         <AuthProvider>
           <AppContent />

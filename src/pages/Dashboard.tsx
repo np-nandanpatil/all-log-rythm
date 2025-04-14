@@ -3,8 +3,6 @@ import { Container, Title, Button, Group, Card, Text, Stack, AppShell, Badge } f
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
-import { NotificationCenter } from '../components/NotificationCenter';
-import { notifications } from '@mantine/notifications';
 
 // Helper function to format date safely
 const formatDate = (dateString: string): string => {
@@ -79,19 +77,8 @@ export function Dashboard() {
       // Update the logs list after deletion
       const updatedLogs = logs.filter(log => log.id !== logId);
       setLogs(updatedLogs);
-      
-      notifications.show({
-        title: 'Success',
-        message: 'Log deleted successfully',
-        color: 'green'
-      });
     } catch (error) {
       console.error('Error deleting log:', error);
-      notifications.show({
-        title: 'Error',
-        message: 'Failed to delete log',
-        color: 'red'
-      });
     }
   };
 
@@ -142,7 +129,6 @@ export function Dashboard() {
         <Group justify="space-between">
           <Title order={3} c="purple">All Log Rythm</Title>
           <Group>
-            <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
               Sign Out
             </Button>

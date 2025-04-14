@@ -19,7 +19,6 @@ import { DatePicker } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { dataServiceAdapter } from '../services';
-import { NotificationCenter } from '../components/NotificationCenter';
 import { formatDateForDisplay, formatDateForStorage, parseDateString, isDateInRange } from '../utils/dateHelpers';
 import { useMediaQuery } from '@mantine/hooks';
 
@@ -415,7 +414,6 @@ export function LogForm() {
         <Group justify="space-between">
           <Title order={3} c="purple">All Log Rythm</Title>
           <Group>
-            <NotificationCenter />
             <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
               Sign Out
             </Button>
