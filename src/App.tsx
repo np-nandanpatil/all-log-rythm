@@ -34,12 +34,121 @@ const theme = createTheme({
     Button: {
       defaultProps: {
         radius: 'md',
+        variant: 'light',
+      },
+      styles: {
+        root: {
+          transition: 'all 0.2s ease-in-out',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 0 15px rgba(87, 227, 242, 0.5)',
+          },
+        },
       },
     },
     Card: {
       defaultProps: {
         radius: 'md',
         shadow: 'sm',
+      },
+      styles: {
+        root: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          transition: 'all 0.3s ease-in-out',
+          '&:hover': {
+            boxShadow: '0 0 20px rgba(87, 227, 242, 0.2)',
+          },
+        },
+      },
+    },
+    Paper: {
+      styles: {
+        root: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+        },
+      },
+    },
+    TextInput: {
+      styles: {
+        input: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          color: '#C1C2C5',
+          transition: 'all 0.2s ease-in-out',
+          '&:focus': {
+            borderColor: 'rgba(87, 227, 242, 0.3)',
+            boxShadow: '0 0 10px rgba(87, 227, 242, 0.2)',
+          },
+        },
+        label: {
+          color: '#C1C2C5',
+        },
+      },
+    },
+    Textarea: {
+      styles: {
+        input: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          color: '#C1C2C5',
+          transition: 'all 0.2s ease-in-out',
+          '&:focus': {
+            borderColor: 'rgba(87, 227, 242, 0.3)',
+            boxShadow: '0 0 10px rgba(87, 227, 242, 0.2)',
+          },
+        },
+        label: {
+          color: '#C1C2C5',
+        },
+      },
+    },
+    Select: {
+      styles: {
+        input: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          color: '#C1C2C5',
+          transition: 'all 0.2s ease-in-out',
+          '&:focus': {
+            borderColor: 'rgba(87, 227, 242, 0.3)',
+            boxShadow: '0 0 10px rgba(87, 227, 242, 0.2)',
+          },
+        },
+        label: {
+          color: '#C1C2C5',
+        },
+        dropdown: {
+          background: 'rgba(26, 27, 30, 0.95)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          backdropFilter: 'blur(10px)',
+        },
+        item: {
+          color: '#C1C2C5',
+          '&:hover': {
+            background: 'rgba(87, 227, 242, 0.1)',
+          },
+        },
+      },
+    },
+    DateInput: {
+      styles: {
+        input: {
+          background: 'rgba(26, 27, 30, 0.8)',
+          border: '1px solid rgba(87, 227, 242, 0.1)',
+          color: '#C1C2C5',
+          transition: 'all 0.2s ease-in-out',
+          '&:focus': {
+            borderColor: 'rgba(87, 227, 242, 0.3)',
+            boxShadow: '0 0 10px rgba(87, 227, 242, 0.2)',
+          },
+        },
+        label: {
+          color: '#C1C2C5',
+        },
       },
     },
   },
@@ -63,8 +172,8 @@ function AppContent() {
         </Group>
       </AppShell.Header>
 
-      {/* <AppShell.Main>
-        <Routes future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <AppShell.Main>
+        <Routes>
           <Route path="/login" element={<Login />} />
           <Route
             path="/dashboard"
@@ -100,46 +209,7 @@ function AppContent() {
           />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
-      </AppShell.Main> */}
-
-<AppShell.Main>
-  <Routes>
-    <Route path="/login" element={<Login />} />
-    <Route
-      path="/dashboard"
-      element={
-        <ProtectedRoute>
-          <Dashboard />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/logs/new"
-      element={
-        <ProtectedRoute allowedRoles={['student', 'team_lead']}>
-          <LogForm />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/logs/:id"
-      element={
-        <ProtectedRoute>
-          <LogView />
-        </ProtectedRoute>
-      }
-    />
-    <Route
-      path="/logs/:id/edit"
-      element={
-        <ProtectedRoute allowedRoles={['student', 'team_lead']}>
-          <LogForm />
-        </ProtectedRoute>
-      }
-    />
-    <Route path="/" element={<Navigate to="/login" replace />} />
-  </Routes>
-</AppShell.Main>
+      </AppShell.Main>
 
       <AppShell.Footer p="md">
         <Group justify="center">
@@ -162,7 +232,7 @@ function AppContent() {
 
 function App() {
   return (
-    <MantineProvider theme={theme} defaultColorScheme="light">
+    <MantineProvider theme={theme} defaultColorScheme="dark">
       <Notifications />
       <Router>
         <AuthProvider>

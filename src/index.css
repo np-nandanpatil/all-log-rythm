@@ -1,20 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&display=swap');
 
 :root {
+  --cyberpunk-glow: rgba(87, 227, 242, 0.5);
+  --cyberpunk-dark: #1A1B1E;
+  --cyberpunk-darker: #101113;
   font-family: 'Orbitron', 'Rajdhani', 'Chakra Petch', sans-serif;
   line-height: 1.5;
   font-weight: 600;
-  color-scheme: light;
-  color: #1a1a1a;
-  background-color: #f8f9fa;
+  color-scheme: dark;
+  color: #C1C2C5;
+  background-color: var(--cyberpunk-dark);
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  max-height: 90vh;
-  background-color: #f8f9fa;
-  color: #1a1a1a;
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--cyberpunk-dark) 0%, var(--cyberpunk-darker) 100%);
+  color: #C1C2C5;
 }
 
 /* Typography */
@@ -22,11 +25,8 @@ h1, h2, h3, h4, h5, h6 {
   font-family: 'Orbitron', sans-serif;
   font-weight: 700;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, #7E22CE 0%, #3B82F6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
+  color: #87EAF2;
+  text-shadow: 0 0 10px var(--cyberpunk-glow);
 }
 
 h1 { 
@@ -85,13 +85,14 @@ h6 {
 
 /* Links */
 a {
-  color: #7E22CE;
+  color: #87EAF2;
   text-decoration: none;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease-in-out;
 }
 
 a:hover {
-  color: #9333EA;
+  color: #BEF8FD;
+  text-shadow: 0 0 10px var(--cyberpunk-glow);
 }
 
 /* Buttons */
@@ -99,15 +100,19 @@ button {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 500;
   border-radius: 0.5rem;
-  border: 1px solid transparent;
+  border: 1px solid rgba(87, 227, 242, 0.1);
   padding: 0.6em 1.2em;
   font-size: 1em;
-  transition: border-color 0.25s, background-color 0.25s;
+  transition: all 0.25s;
   cursor: pointer;
+  background: rgba(26, 27, 30, 0.8);
+  color: #C1C2C5;
 }
 
 button:hover {
-  border-color: #7E22CE;
+  border-color: rgba(87, 227, 242, 0.3);
+  box-shadow: 0 0 15px var(--cyberpunk-glow);
+  transform: translateY(-2px);
 }
 
 button:focus,
@@ -117,72 +122,140 @@ button:focus-visible {
 
 /* Cards */
 .mantine-Card-root {
-  background-color: white;
+  background: rgba(26, 27, 30, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1);
   border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e9ecef;
+  transition: all 0.3s ease-in-out;
 }
 
-/* Text Inputs */
+.mantine-Card-root:hover {
+  box-shadow: 0 0 20px rgba(87, 227, 242, 0.2);
+}
+
+/* Form Elements */
+.mantine-Paper-root {
+  background: rgba(26, 27, 30, 0.8) !important;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1) !important;
+}
+
 .mantine-TextInput-input,
 .mantine-Textarea-input,
-.mantine-Select-input {
-  background-color: white;
-  border: 1px solid #e9ecef;
-  border-radius: 0.5rem;
-  color: #1a1a1a;
-  font-weight: 500;
-  font-family: 'Rajdhani', sans-serif;
+.mantine-Select-input,
+.mantine-DateInput-input {
+  background: rgba(26, 27, 30, 0.8) !important;
+  border: 1px solid rgba(87, 227, 242, 0.1) !important;
+  color: #C1C2C5 !important;
+  transition: all 0.2s ease-in-out !important;
 }
 
 .mantine-TextInput-input:focus,
 .mantine-Textarea-input:focus,
-.mantine-Select-input:focus {
-  border-color: #7E22CE;
+.mantine-Select-input:focus,
+.mantine-DateInput-input:focus {
+  border-color: rgba(87, 227, 242, 0.3) !important;
+  box-shadow: 0 0 10px var(--cyberpunk-glow) !important;
+}
+
+.mantine-TextInput-label,
+.mantine-Textarea-label,
+.mantine-Select-label,
+.mantine-DateInput-label {
+  color: #C1C2C5 !important;
+}
+
+.mantine-Select-dropdown {
+  background: rgba(26, 27, 30, 0.95) !important;
+  border: 1px solid rgba(87, 227, 242, 0.1) !important;
+  backdrop-filter: blur(10px);
+}
+
+.mantine-Select-item {
+  color: #C1C2C5 !important;
+}
+
+.mantine-Select-item:hover {
+  background: rgba(87, 227, 242, 0.1) !important;
+}
+
+/* Calendar Styles */
+.mantine-DatePicker-calendar {
+  background: rgba(26, 27, 30, 0.95) !important;
+  border: 1px solid rgba(87, 227, 242, 0.1) !important;
+  backdrop-filter: blur(10px);
+}
+
+.mantine-DatePicker-day {
+  color: #C1C2C5 !important;
+}
+
+.mantine-DatePicker-day:hover {
+  background: rgba(87, 227, 242, 0.1) !important;
+}
+
+.mantine-DatePicker-day[data-selected] {
+  background: rgba(87, 227, 242, 0.3) !important;
+  color: #fff !important;
+}
+
+.mantine-DatePicker-day[data-selected]:hover {
+  background: rgba(87, 227, 242, 0.4) !important;
 }
 
 /* Tables */
 .mantine-Table-root {
-  background-color: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(26, 27, 30, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 .mantine-Table-th {
-  background-color: #f8f9fa;
-  color: #1a1a1a;
+  background: rgba(26, 27, 30, 0.95);
+  color: #87EAF2;
   font-weight: 600;
 }
 
 .mantine-Table-td {
-  color: #1a1a1a;
+  color: #C1C2C5;
+  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 /* App Shell */
 .mantine-AppShell-header {
-  background-color: white;
-  border-bottom: 1px solid #e9ecef;
+  background: rgba(26, 27, 30, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 .mantine-AppShell-main {
-  background-color: #f8f9fa;
+  background: linear-gradient(135deg, var(--cyberpunk-dark) 0%, var(--cyberpunk-darker) 100%);
+}
+
+.mantine-AppShell-footer {
+  background: rgba(26, 27, 30, 0.8);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 /* Notifications */
 .mantine-Notification-root {
-  background-color: white;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(26, 27, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1);
+  color: #C1C2C5;
 }
 
 /* Modal */
 .mantine-Modal-content {
-  background-color: white;
-  border-radius: 0.5rem;
+  background: rgba(26, 27, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 .mantine-Modal-header {
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
+  color: #C1C2C5;
 }
 
 /* Badge */
@@ -249,25 +322,17 @@ button:focus-visible {
 
 /* Menu */
 .mantine-Menu-dropdown {
-  background-color: white;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(26, 27, 30, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(87, 227, 242, 0.1);
 }
 
 .mantine-Menu-item {
-  color: #1a1a1a;
-  font-weight: 500;
+  color: #C1C2C5;
 }
 
 .mantine-Menu-item:hover {
-  background-color: #f8f9fa;
-}
-
-/* Paper */
-.mantine-Paper-root {
-  background-color: white;
-  border: 1px solid #e9ecef;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: rgba(87, 227, 242, 0.1);
 }
 
 /* Grid */
