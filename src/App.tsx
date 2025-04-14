@@ -210,7 +210,7 @@ function AppContent() {
           <Text size="sm" c="dimmed">
             Developed by{' '}
             <img 
-              src="public/Logo-white.png" 
+              src="Logo-white.png" 
               alt="Logo" 
               style={{ 
                 height: '24px', 
