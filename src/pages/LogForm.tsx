@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { 
-  Container, 
   Title, 
   NumberInput, 
   Button, 
@@ -10,19 +9,22 @@ import {
   Textarea, 
   Paper, 
   Text,
-  AppShell,
-  Box
+  Box,
+  Container,
 } from '@mantine/core';
-import { DatePicker } from '@mantine/dates';
+import { DatePickerInput } from '@mantine/dates';
+import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
-import { dataServiceAdapter } from '../services';
-import { formatDateForDisplay, formatDateForStorage, parseDateString, isDateInRange } from '../utils/dateHelpers';
-import { useMediaQuery } from '@mantine/hooks';
+import { firebaseService } from '../services';
+import { formatDateForDisplay, formatDateForStorage, parseDateString } from '../utils/dateHelpers';
+import { Layout } from '../components/Layout';
+import { IconCalendar, IconPlus, IconTrash, IconDeviceFloppy, IconSend, IconX, IconArrowLeft } from '@tabler/icons-react';
+import { motion } from 'framer-motion';
 
 export function LogForm() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { currentUser, signOut } = useAuth();
+  const { currentUser } = useAuth();
   const [weekNumber, setWeekNumber] = useState<number>(1);
   const [startDate, setStartDate] = useState<Date | null>(new Date());
   const [endDate, setEndDate] = useState<Date | null>(new Date());
@@ -36,12 +38,11 @@ export function LogForm() {
   const [dateRangeError, setDateRangeError] = useState<string | null>(null);
   const [activityDateError, setActivityDateError] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
-  const isMobile = useMediaQuery('(max-width: 48em)');
 
   useEffect(() => {
     if (id) {
       const fetchLog = async () => {
-        const log = await dataServiceAdapter.getLogById(id);
+        const log = await firebaseService.getLogById(id);
         if (log) {
           setWeekNumber(log.weekNumber);
           const parsedStartDate = parseDateString(log.startDate);
@@ -91,13 +92,15 @@ export function LogForm() {
   };
 
   const checkWeekNumberExists = async (weekNum: number): Promise<boolean> => {
+    if (!currentUser?.teamIds?.[0]) return false;
+    
     if (id) {
-      const currentLog = await dataServiceAdapter.getLogById(id);
+      const currentLog = await firebaseService.getLogById(id);
       if (currentLog && currentLog.weekNumber === weekNum) {
         return false;
       }
     }
-    return await dataServiceAdapter.isWeekNumberExists(weekNum, id);
+    return await firebaseService.isWeekNumberExists(weekNum, currentUser.teamIds[0], id);  
   };
 
   const handleWeekNumberChange = async (value: string | number) => {
@@ -113,11 +116,12 @@ export function LogForm() {
   };
 
   const checkDateRangeOverlap = async (start: Date | null, end: Date | null): Promise<boolean> => {
-    if (!start || !end) return false;
+    if (!start || !end || !currentUser?.teamIds?.[0]) return false;
     try {
-      return await dataServiceAdapter.isDateRangeOverlapping(
+      return await firebaseService.isDateRangeOverlapping(
         formatDateForStorage(start),
         formatDateForStorage(end),
+        currentUser.teamIds[0],
         id
       );
     } catch (error) {
@@ -158,27 +162,24 @@ export function LogForm() {
     if (startDate && parsedDate) {
       const overlaps = await checkDateRangeOverlap(startDate, parsedDate);
       if (overlaps) {
-        setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
+        setDateRangeError('The date range overlaps with an existing log.');
       } else {
         setDateRangeError(null);
       }
-      
-      activities.forEach(activity => {
-        if (activity.date) {
-          const activityDate = parseDateString(activity.date);
-          if (activityDate && (activityDate < startDate || activityDate > parsedDate)) {
-            setActivityDateError(`Activity date ${formatDateForDisplay(activityDate)} is outside the log date range`);
-            return;
-          }
-        }
-      });
-      setActivityDateError(null);
     }
   };
 
   const createLogData = (status: string) => {
     if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
       throw new Error('Missing required data');
+    }
+
+    // Get user's primary team ID
+    // Team leaders and admins can create logs without a team
+    // Regular members must be part of a team
+    const teamId = currentUser.teamIds?.[0];
+    if (!teamId && currentUser.role !== 'team_lead' && currentUser.role !== 'admin') {
+      throw new Error('You must be part of a team to create logs.\n\nPlease go to your Profile page to join an existing team using a referral code.');
     }
 
     return {
@@ -194,6 +195,7 @@ export function LogForm() {
       createdBy: currentUser.id,
       createdByName: currentUser.name,
       createdByUsername: currentUser.username,
+      teamId, // Critical for team isolation
       createdAt: formatDateForStorage(new Date()),
       updatedAt: formatDateForStorage(new Date())
     };
@@ -201,281 +203,230 @@ export function LogForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[SAVE DRAFT] Button clicked');
+    console.log('[SAVE DRAFT] Current user:', currentUser);
+    console.log('[SAVE DRAFT] Start date:', startDate);
+    console.log('[SAVE DRAFT] End date:', endDate);
+    console.log('[SAVE DRAFT] Activities:', activities);
     
     if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
-      alert('Please fill in all required fields');
+      console.error('[SAVE DRAFT] Missing required fields');
+      notifications.show({
+        title: 'Missing Fields',
+        message: 'Please fill in all required fields',
+        color: 'red'
+      });
       return;
     }
-
     if (activities.some(activity => !activity.date || !activity.description)) {
-      alert('Please fill in all activity details');
+      console.error('[SAVE DRAFT] Missing activity details');
+      notifications.show({
+        title: 'Incomplete Activities',
+        message: 'Please fill in all activity details (date, hours, and description)',
+        color: 'red'
+      });
       return;
     }
-
     setLoading(true);
-
     try {
+      console.log('[SAVE DRAFT] Creating log data...');
       const logData = createLogData(id ? logStatus || 'draft' : 'draft');
-
+      console.log('[SAVE DRAFT] Log data created:', logData);
+      
       if (id) {
-        const currentLog = await dataServiceAdapter.getLogById(id);
-        if (currentLog) {
-          const updateData = {
-            ...currentLog,
-            ...logData
-          };
-          await dataServiceAdapter.updateLog(id, updateData);
-        } else {
-          await dataServiceAdapter.updateLog(id, logData);
-        }
+        console.log('[SAVE DRAFT] Updating existing log:', id);
+        const currentLog = await firebaseService.getLogById(id);
+        const updateData = currentLog ? { ...currentLog, ...logData } : logData;
+        await firebaseService.updateLog(id, updateData);
+        console.log('[SAVE DRAFT] Log updated successfully');
       } else {
-        await dataServiceAdapter.createLog(logData);
+        console.log('[SAVE DRAFT] Creating new log...');
+        const result = await firebaseService.createLog(logData);
+        console.log('[SAVE DRAFT] Log created successfully:', result);
       }
-
+      console.log('[SAVE DRAFT] Navigating to dashboard...');
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('Error saving log:', error);
-      alert(error.message || 'Failed to save log');
+      console.error('[SAVE DRAFT] Error saving log:', error);
+      notifications.show({
+        title: 'Error Saving Log',
+        message: error.message || 'Failed to save log',
+        color: 'red'
+      });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmitForReview = async () => {
+    console.log('[SUBMIT] Button clicked');
+    console.log('[SUBMIT] Current user:', currentUser);
+    console.log('[SUBMIT] Start date:', startDate);
+    console.log('[SUBMIT] End date:', endDate);
+    console.log('[SUBMIT] Activities:', activities);
+    
     if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
-      alert('Please fill in all required fields');
+      console.error('[SUBMIT] Missing required fields');
+      notifications.show({
+        title: 'Missing Fields',
+        message: 'Please fill in all required fields',
+        color: 'red'
+      });
       return;
     }
-
     if (activities.some(activity => !activity.date || !activity.description)) {
-      alert('Please fill in all activity details');
+      console.error('[SUBMIT] Missing activity details');
+      notifications.show({
+        title: 'Incomplete Activities',
+        message: 'Please fill in all activity details (date, hours, and description)',
+        color: 'red'
+      });
       return;
     }
-
     setLoading(true);
-
     try {
+      console.log('[SUBMIT] Creating log data with pending-lead status...');
       const logData = createLogData('pending-lead');
-
-      let savedLog;
+      console.log('[SUBMIT] Log data created:', logData);
+      
       if (id) {
-        const currentLog = await dataServiceAdapter.getLogById(id);
-        if (!currentLog) {
-          throw new Error('Log not found');
-        }
-
-        const updateData = {
-          ...logData,
-          createdBy: currentLog.createdBy,
-          createdByName: currentLog.createdByName,
-          createdByUsername: currentLog.createdByUsername || currentUser.username,
-          createdAt: currentLog.createdAt,
-          comments: currentLog.comments || []
-        };
-
-        savedLog = await dataServiceAdapter.updateLog(id, updateData);
+        console.log('[SUBMIT] Updating existing log:', id);
+        const currentLog = await firebaseService.getLogById(id);
+        if(!currentLog) throw new Error('Log not found');
+        const updateData = { ...logData, createdBy: currentLog.createdBy, createdByName: currentLog.createdByName };
+        await firebaseService.updateLog(id, updateData);
+        console.log('[SUBMIT] Log updated successfully');
       } else {
-        savedLog = await dataServiceAdapter.createLog(logData);
+        console.log('[SUBMIT] Creating new log...');
+        const result = await firebaseService.createLog(logData);
+        console.log('[SUBMIT] Log created successfully:', result);
       }
-
-      if (!savedLog || !savedLog.startDate || !savedLog.endDate) {
-        throw new Error('Failed to save log with valid dates');
-      }
-
+      console.log('[SUBMIT] Navigating to dashboard...');
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('Error submitting log for review:', error);
-      alert(error.message || 'Failed to submit log for review');
+      console.error('[SUBMIT] Error submitting log:', error);
+      notifications.show({
+        title: 'Error Submitting Log',
+        message: error.message,
+        color: 'red'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
-  };
-
-  const validateActivityDate = (date: Date) => {
-    if (!startDate || !endDate) return true;
-    const start = startDate instanceof Date ? startDate : new Date(startDate);
-    const end = endDate instanceof Date ? endDate : new Date(endDate);
-    return isDateInRange(date, start, end);
-  };
-
-  const handleActivityDateChange = (index: number, date: Date | null) => {
-    if (!date) return;
-    
-    if (!validateActivityDate(date)) {
-      alert(`Activity date must be between ${formatDateForDisplay(startDate)} and ${formatDateForDisplay(endDate)}`);
-      return;
-    }
-
-    const newActivities = [...activities];
-    newActivities[index] = { ...newActivities[index], date };
-    setActivities(newActivities);
-  };
-
   return (
-    <AppShell
-      header={{ height: 60 }}
-      padding="md"
-    >
-      <AppShell.Header p="xs">
-        <Group justify="space-between">
-          <Title order={3} c="purple">All Log Rythm</Title>
-          <Group>
-            <Button onClick={handleSignOut} variant="outline" color="red" size="sm">
-              Sign Out
-            </Button>
+    <Layout>
+      <Container size="lg" py="md">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <Group mb="xl">
+              <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/dashboard')}>
+                  Cancel
+              </Button>
+              <Title order={2}>{id ? 'Edit Log' : 'Create New Log'}</Title>
           </Group>
-        </Group>
-      </AppShell.Header>
 
-      <AppShell.Main>
-        <Container size="md" py="xl">
-          <Title mb="xl" c="purple">{id ? 'Edit Log' : 'Create New Log'}</Title>
-
-          <Paper withBorder shadow="md" p={{ base: 'sm', sm: 'xl' }} radius="md">
-            <form onSubmit={handleSubmit}>
-              <Stack gap="md">
-                <Stack gap="md">
-                  <NumberInput
-                    label="Week Number"
-                    placeholder="Enter week number"
-                    min={1}
-                    max={52}
-                    value={weekNumber}
-                    onChange={handleWeekNumberChange}
-                    error={weekNumberError}
-                    radius="md"
-                  />
-                  
-                  <Group grow align="flex-start" wrap="wrap" gap="md">
-                    <Box w="100%" maw={isMobile ? "100%" : "48%"}>
-                      <Text size="sm" fw={500} mb={5}>Start Date</Text>
-                      <DatePicker
-                        value={startDate}
-                        onChange={handleStartDateChange}
-                        style={{ width: '100%' }}
-                      />
-                      {dateRangeError && <Text c="red" size="sm">{dateRangeError}</Text>}
-                    </Box>
-                    <Box w="100%" maw={isMobile ? "100%" : "48%"}>
-                      <Text size="sm" fw={500} mb={5}>End Date</Text>
-                      <DatePicker
-                        value={endDate}
-                        onChange={handleEndDateChange}
-                        style={{ width: '100%' }}
-                      />
-                    </Box>
-                  </Group>
-                </Stack>
-
-                <Text fw={500} size="lg" mt="md">Activities</Text>
-                {activityDateError && (
-                  <Text c="red" size="sm">{activityDateError}</Text>
-                )}
-
-                {activities.map((activity, index) => (
-                  <Paper key={index} withBorder p={{ base: 'xs', sm: 'md' }} radius="md">
-                    <Stack gap="md">
-                      <Group grow align="flex-start" wrap="wrap" gap="md">
-                        <Box w="100%" maw={isMobile ? "100%" : "48%"}>
-                          <Text size="sm" fw={500} mb={5}>Date</Text>
-                          <DatePicker
-                            value={activity.date}
-                            onChange={(date) => handleActivityChange(index, 'date', date)}
-                            style={{ width: '100%' }}
+          <form onSubmit={handleSubmit}>
+              <Stack gap="xl">
+                  <Paper p="xl" radius="lg" withBorder bg="white">
+                       <Title order={4} mb="lg">Log Details</Title>
+                       <Stack gap="md">
+                          <NumberInput
+                              label="Week Number"
+                              description="Which week of your internship is this?"
+                              min={1}
+                              max={52}
+                              value={weekNumber}
+                              onChange={handleWeekNumberChange}
+                              error={weekNumberError}
+                              w="100%"
+                              maw={200}
                           />
-                        </Box>
-                        <NumberInput
-                          label="Hours"
-                          placeholder="Enter hours"
-                          min={0}
-                          max={24}
-                          value={activity.hours}
-                          onChange={(value) => handleActivityChange(index, 'hours', value)}
-                          radius="md"
-                          style={{ width: isMobile ? '100%' : undefined, flex: isMobile ? '1 1 100%' : '1 1 150px' }}
-                        />
-                      </Group>
-                      <Group grow>
-                        <Textarea
-                          label="Description"
-                          placeholder="Enter activity description"
-                          value={activity.description}
-                          onChange={(e) => handleActivityChange(index, 'description', e.target.value)}
-                          radius="md"
-                        />
-                        {activities.length > 1 && (
-                          <Button 
-                            color="red" 
-                            variant="light" 
-                            onClick={() => handleRemoveActivity(index)}
-                            radius="md"
-                            style={{ alignSelf: 'flex-end' }}
-                          >
-                            Remove
-                          </Button>
-                        )}
-                      </Group>
-                    </Stack>
+                           <Group grow>
+                              <DatePickerInput
+                                  label="Start Date"
+                                  placeholder="Pick date"
+                                  value={startDate}
+                                  onChange={handleStartDateChange}
+                                  error={dateRangeError}
+                                  leftSection={<IconCalendar size={16} />}
+                              />
+                              <DatePickerInput
+                                  label="End Date"
+                                  placeholder="Pick date"
+                                  value={endDate}
+                                  onChange={handleEndDateChange}
+                                  leftSection={<IconCalendar size={16} />}
+                              />
+                          </Group>
+                       </Stack>
                   </Paper>
-                ))}
 
-                <Button 
-                  onClick={handleAddActivity} 
-                  variant="light" 
-                  color="indigo"
-                  leftSection={<span>+</span>}
-                  radius="md"
-                >
-                  Add Activity
-                </Button>
+                  <Paper p="xl" radius="lg" withBorder bg="white">
+                      <Group justify="space-between" mb="lg">
+                          <Title order={4}>Daily Activities</Title>
+                          <Button variant="light" size="sm" onClick={handleAddActivity} leftSection={<IconPlus size={16} />}>
+                              Add Activity
+                          </Button>
+                      </Group>
+                      
+                      {activityDateError && <Text c="red" size="sm" mb="md">{activityDateError}</Text>}
 
-                <Group justify="flex-end" mt="xl" wrap="wrap" gap="sm">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => navigate('/dashboard')}
-                    radius="md"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    loading={loading}
-                    color="indigo"
-                    radius="md"
-                  >
-                    {id ? 'Update Log' : 'Save as Draft'}
-                  </Button>
-                  {!id && (logStatus === 'draft' || logStatus === 'needs-revision') && (
-                    <Button 
-                      onClick={handleSubmitForReview}
-                      loading={loading}
-                      color="green"
-                      radius="md"
-                    >
-                      Submit for Review
-                    </Button>
-                  )}
-                  {id && (logStatus === 'draft' || logStatus === 'needs-revision') && (
-                    <Button 
-                      onClick={handleSubmitForReview}
-                      loading={loading}
-                      color="green"
-                      radius="md"
-                    >
-                      Submit for Review
-                    </Button>
-                  )}
-                </Group>
+                      <Stack gap="lg">
+                          {activities.map((activity, index) => (
+                              <Box key={index} style={{ position: 'relative' }}>
+                                  <Paper withBorder p="md" radius="md" bg="gray.0">
+                                      <Group align="flex-start" mb="sm">
+                                           <DatePickerInput
+                                              placeholder="Date"
+                                              value={activity.date}
+                                              onChange={(date) => handleActivityChange(index, 'date', date)}
+                                              style={{ flex: 1 }}
+                                          />
+                                          <NumberInput
+                                              placeholder="Hrs"
+                                              min={0}
+                                              max={24}
+                                              value={activity.hours}
+                                              onChange={(val) => handleActivityChange(index, 'hours', val)}
+                                              style={{ width: 80 }}
+                                          />
+                                          {activities.length > 1 && (
+                                              <Button color="red" variant="subtle" p={0} onClick={() => handleRemoveActivity(index)}>
+                                                  <IconTrash size={16} />
+                                              </Button>
+                                          )}
+                                      </Group>
+                                      <Textarea
+                                          placeholder="Describe what you did..."
+                                          minRows={2}
+                                          autosize
+                                          value={activity.description}
+                                          onChange={(e) => handleActivityChange(index, 'description', e.target.value)}
+                                      />
+                                  </Paper>
+                              </Box>
+                          ))}
+                      </Stack>
+                  </Paper>
+
+                  <Group justify="flex-end" pb="xl">
+                       <Button variant="default" onClick={() => navigate('/dashboard')} leftSection={<IconX size={16} />}>
+                          Discard
+                       </Button>
+                       <Button type="submit" variant="light" loading={loading} leftSection={<IconDeviceFloppy size={16} />}>
+                          Save Draft
+                       </Button>
+                       {(!id || logStatus === 'draft' || logStatus === 'needs-revision') && (
+                          <Button onClick={handleSubmitForReview} color="indigo" loading={loading} leftSection={<IconSend size={16} />}>
+                               Submit for Review
+                          </Button>
+                       )}
+                  </Group>
               </Stack>
-            </form>
-          </Paper>
-        </Container>
-      </AppShell.Main>
-    </AppShell>
+          </form>
+        </motion.div>
+      </Container>
+    </Layout>
   );
-} 
+}

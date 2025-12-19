@@ -23,8 +23,8 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   }
 
   if (!currentUser) {
-    console.log('No user found, redirecting to login');
-    return <Navigate to="/login" />;
+    console.log('No user found, redirecting to home');
+    return <Navigate to="/" />;
   }
 
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {

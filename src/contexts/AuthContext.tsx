@@ -1,20 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { firebaseService } from '../services/firebaseService';
+import { auth, db } from '../config/firebase';
+import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { User, UserRole } from '../types';
 
 console.log('AuthContext loaded');
-
-interface User {
-  id: string;
-  username: string;
-  role: string;
-  name: string;
-}
 
 interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  signOut: () => void;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (email: string, password: string, userData: any, teamData?: any) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  lastError: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,45 +29,176 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const isSigningUp = React.useRef(false);
 
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('DEBUG: Auth State Changed:', user ? user.uid : 'No User');
+      if (isSigningUp.current) {
+        console.log('Skipping auth state change during signup');
+        return;
+      }
+
+      setLoading(true);
+      if (user) {
+        try {
+          console.log('DEBUG: Fetching user profile for:', user.uid);
+          // Fetch user profile from Firestore
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            console.log('DEBUG: User profile found');
+            const userData = userDoc.data();
+            setCurrentUser({
+              uid: user.uid,
+              name: userData.name || '',
+              role: userData.role as UserRole,
+              ...userData
+            } as User);
+          } else {
+            console.warn('DEBUG: User document NOT found for', user.uid, '- Auto-creating basic profile');
+            
+            // Auto-create a basic user document for missing profiles
+            // This handles cases where Firebase Auth account exists but Firestore doc is missing
+            const basicUserData: User = {
+              id: user.uid,
+              uid: user.uid,
+              name: user.displayName || 'User', // Use display name if available, otherwise placeholder
+              email: user.email || '',
+              role: 'student' as UserRole, // Default role - user should update this
+              teamIds: [],
+              createdAt: new Date().toISOString(),
+              profileIncomplete: true // Flag to prompt profile completion
+            };
+            
+            // Create the user document in Firestore
+            const { setDoc } = await import('firebase/firestore');
+            await setDoc(doc(db, 'users', user.uid), basicUserData);
+            console.log('DEBUG: Auto-created user document for', user.uid);
+            
+            // Set the current user with the basic profile
+            setCurrentUser(basicUserData);
+            setLastError('Profile auto-created. Please complete your profile.');
+          }
+        } catch (error: any) {
+          console.error('DEBUG: Error fetching user profile:', error);
+          setLastError(`Fetch profile error: ${error.message}`);
+          setCurrentUser(null);
+        }
+      } else {
+        console.log('DEBUG: No user in auth state');
+        // Don't set error here, as null user is valid state
+        setCurrentUser(null);
+      }
+      setLoading(false);
+    });
+
+    return unsubscribe;
   }, []);
 
-  const login = async (username: string, password: string) => {
-    try {
-      const authenticatedUser = await firebaseService.authenticateUser(username, password);
-      if (!authenticatedUser) {
-        throw new Error('Invalid credentials');
+  const refreshUser = async () => {
+    if (auth.currentUser) {
+      setLoading(true);
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setCurrentUser({
+            uid: auth.currentUser.uid,
+            name: userData.name || '',
+            role: userData.role as UserRole,
+            ...userData
+          } as User);
+        }
+      } catch (error) {
+        console.error('Error refreshing user:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      const userData: User = {
-        id: authenticatedUser.id || '',
-        username: authenticatedUser.username || '',
-        role: authenticatedUser.role || '',
-        name: authenticatedUser.name || ''
+    }
+  };
+
+  const signup = async (email: string, password: string, userData: any, teamData?: any) => {
+    isSigningUp.current = true;
+    setLoading(true);
+    try {
+      const { createUserWithEmailAndPassword } = await import('firebase/auth');
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const uid = userCredential.user.uid;
+
+      // Handle Team Creation if needed
+      let teamIdToJoin: string | null = null;
+      let newTeamId: string | null = null;
+
+      if (teamData?.createTeam) {
+          const { firebaseService } = await import('../services');
+          const team = await firebaseService.createTeam(teamData.teamName, uid);
+          newTeamId = team.id;
+      } else if (teamData?.joinCode) {
+          const { firebaseService } = await import('../services');
+          const type = userData.role === 'guide' ? 'guide' : 'referral';
+          const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
+          if (team) teamIdToJoin = team.id;
+      }
+
+      const teamIds = [];
+      if (newTeamId) teamIds.push(newTeamId);
+      if (teamIdToJoin) teamIds.push(teamIdToJoin);
+
+      const newUser: User = {
+          id: uid,
+          uid,
+          name: userData.name,
+          email,
+          role: userData.role,
+          teamIds,
+          createdAt: new Date().toISOString()
       };
 
-      setCurrentUser(userData);
-      localStorage.setItem('currentUser', JSON.stringify(userData));
+      // Create User Document
+      console.log('DEBUG: Writing user document to Firestore');
+      const { setDoc, doc } = await import('firebase/firestore');
+      await setDoc(doc(db, 'users', uid), newUser);
+      console.log('DEBUG: User document written successfully');
+
+      // Join Team if needed
+      if (teamIdToJoin) {
+          const { firebaseService } = await import('../services');
+          await firebaseService.joinTeam(teamIdToJoin, uid, userData.role);
+      }
+
+      // Manually set state to avoid race conditions
+      console.log('DEBUG: Manually setting current user');
+      setCurrentUser(newUser);
+      
+    } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+      isSigningUp.current = false;
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error('Login error:', error);
       throw error;
     }
   };
 
-  const signOut = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth);
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, login, signOut }}>
+    <AuthContext.Provider value={{ currentUser, loading, login, signup, signOut, refreshUser, lastError }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,350 +1,48 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Rajdhani:wght@300;400;500;600;700&family=Chakra+Petch:wght@300;400;500;600;700&display=swap');
+* {
+  box-sizing: border-box;
+}
 
-:root {
-  --cyberpunk-glow: rgba(87, 227, 242, 0.5);
-  --cyberpunk-dark: #1A1B1E;
-  --cyberpunk-darker: #101113;
-  font-family: 'Orbitron', 'Rajdhani', 'Chakra Petch', sans-serif;
-  line-height: 1.5;
-  font-weight: 600;
-  color-scheme: dark;
-  color: #C1C2C5;
-  background-color: var(--cyberpunk-dark);
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
-  margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: linear-gradient(135deg, var(--cyberpunk-dark) 0%, var(--cyberpunk-darker) 100%);
-  color: #C1C2C5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #87EAF2;
-  text-shadow: 0 0 10px var(--cyberpunk-glow);
+/* Responsive spacing utilities */
+.responsive-container-padding {
+  padding: 1rem;
 }
 
-h1 { 
-  font-size: 5rem; 
-  background: linear-gradient(135deg, #7E22CE 0%, #3B82F6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
+@media (min-width: 768px) {
+  .responsive-container-padding {
+    padding: 1.5rem;
+  }
 }
 
-h2 { 
-  font-size: 3rem; 
-  background: linear-gradient(135deg, #9333EA 0%, #2563EB 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
+@media (min-width: 1024px) {
+  .responsive-container-padding {
+    padding: 2rem;
+  }
 }
 
-h3 { 
-  font-size: 1.75rem; 
-  background: linear-gradient(135deg, #A855F7 0%, #1D4ED8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-h4 { 
-  font-size: 1.5rem; 
-  background: linear-gradient(135deg, #C084FC 0%, #1E40AF 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-h5 { 
-  font-size: 1.25rem; 
-  background: linear-gradient(135deg, #D8B4FE 0%, #1E3A8A 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-h6 { 
-  font-size: 1rem; 
-  background: linear-gradient(135deg, #E9D5FF 0%, #172554 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-/* Links */
-a {
-  color: #87EAF2;
-  text-decoration: none;
-  transition: all 0.2s ease-in-out;
-}
-
-a:hover {
-  color: #BEF8FD;
-  text-shadow: 0 0 10px var(--cyberpunk-glow);
-}
-
-/* Buttons */
-button {
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 500;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(87, 227, 242, 0.1);
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  transition: all 0.25s;
-  cursor: pointer;
-  background: rgba(26, 27, 30, 0.8);
-  color: #C1C2C5;
-}
-
-button:hover {
-  border-color: rgba(87, 227, 242, 0.3);
-  box-shadow: 0 0 15px var(--cyberpunk-glow);
-  transform: translateY(-2px);
-}
-
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-/* Cards */
-.mantine-Card-root {
-  background: rgba(26, 27, 30, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(87, 227, 242, 0.1);
-  border-radius: 0.5rem;
-  transition: all 0.3s ease-in-out;
-}
-
-.mantine-Card-root:hover {
-  box-shadow: 0 0 20px rgba(87, 227, 242, 0.2);
-}
-
-/* Form Elements */
-.mantine-Paper-root {
-  background: rgba(26, 27, 30, 0.8) !important;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(87, 227, 242, 0.1) !important;
-}
-
-.mantine-TextInput-input,
-.mantine-Textarea-input,
-.mantine-Select-input,
-.mantine-DateInput-input {
-  background: rgba(26, 27, 30, 0.8) !important;
-  border: 1px solid rgba(87, 227, 242, 0.1) !important;
-  color: #C1C2C5 !important;
-  transition: all 0.2s ease-in-out !important;
-}
-
-.mantine-TextInput-input:focus,
-.mantine-Textarea-input:focus,
-.mantine-Select-input:focus,
-.mantine-DateInput-input:focus {
-  border-color: rgba(87, 227, 242, 0.3) !important;
-  box-shadow: 0 0 10px var(--cyberpunk-glow) !important;
-}
-
-.mantine-TextInput-label,
-.mantine-Textarea-label,
-.mantine-Select-label,
-.mantine-DateInput-label {
-  color: #C1C2C5 !important;
-}
-
-.mantine-Select-dropdown {
-  background: rgba(26, 27, 30, 0.95) !important;
-  border: 1px solid rgba(87, 227, 242, 0.1) !important;
-  backdrop-filter: blur(10px);
-}
-
-.mantine-Select-item {
-  color: #C1C2C5 !important;
-}
-
-.mantine-Select-item:hover {
-  background: rgba(87, 227, 242, 0.1) !important;
-}
-
-/* Calendar Styles */
-.mantine-DatePicker-calendar {
-  background: rgba(26, 27, 30, 0.95) !important;
-  border: 1px solid rgba(87, 227, 242, 0.1) !important;
-  backdrop-filter: blur(10px);
-}
-
-.mantine-DatePicker-day {
-  color: #C1C2C5 !important;
-}
-
-.mantine-DatePicker-day:hover {
-  background: rgba(87, 227, 242, 0.1) !important;
-}
-
-.mantine-DatePicker-day[data-selected] {
-  background: rgba(87, 227, 242, 0.3) !important;
-  color: #fff !important;
-}
-
-.mantine-DatePicker-day[data-selected]:hover {
-  background: rgba(87, 227, 242, 0.4) !important;
-}
-
-/* Tables */
-.mantine-Table-root {
-  background: rgba(26, 27, 30, 0.8);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-.mantine-Table-th {
-  background: rgba(26, 27, 30, 0.95);
-  color: #87EAF2;
-  font-weight: 600;
-}
-
-.mantine-Table-td {
-  color: #C1C2C5;
-  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-/* App Shell */
-.mantine-AppShell-header {
-  background: rgba(26, 27, 30, 0.8);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-.mantine-AppShell-main {
-  background: linear-gradient(135deg, var(--cyberpunk-dark) 0%, var(--cyberpunk-darker) 100%);
-}
-
-.mantine-AppShell-footer {
-  background: rgba(26, 27, 30, 0.8);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-/* Modal */
-.mantine-Modal-content {
-  background: rgba(26, 27, 30, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-.mantine-Modal-header {
-  border-bottom: 1px solid rgba(87, 227, 242, 0.1);
-  color: #C1C2C5;
-}
-
-/* Badge */
-.mantine-Badge-root {
-  font-family: 'Rajdhani', sans-serif;
-  font-weight: 500;
-}
-
-/* Group */
-.mantine-Group-root {
-  gap: 1rem;
-}
-
-/* Stack */
-.mantine-Stack-root {
-  gap: 1rem;
-}
-
-/* Title */
-.mantine-Title-root {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  background: linear-gradient(135deg, #7E22CE 0%, #3B82F6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-.mantine-Title-root[data-order="1"] {
-  background: linear-gradient(135deg, #7E22CE 0%, #3B82F6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-.mantine-Title-root[data-order="2"] {
-  background: linear-gradient(135deg, #9333EA 0%, #2563EB 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-.mantine-Title-root[data-order="3"] {
-  background: linear-gradient(135deg, #A855F7 0%, #1D4ED8 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-fill-color: transparent;
-}
-
-/* Text */
-.mantine-Text-root {
-  color: #1a1a1a;
-  font-weight: 500;
-}
-
-/* ActionIcon */
-.mantine-ActionIcon-root {
-  color: #1a1a1a;
-}
-
-/* Menu */
-.mantine-Menu-dropdown {
-  background: rgba(26, 27, 30, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(87, 227, 242, 0.1);
-}
-
-.mantine-Menu-item {
-  color: #C1C2C5;
-}
-
-.mantine-Menu-item:hover {
-  background: rgba(87, 227, 242, 0.1);
-}
-
-/* Grid */
-.mantine-Grid-root {
-  gap: 1rem;
-}
-
-/* Container */
-.mantine-Container-root {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  h1 { font-size: 2rem; }
-  h2 { font-size: 1.75rem; }
-  h3 { font-size: 1.5rem; }
-  h4 { font-size: 1.25rem; }
-  h5 { font-size: 1.1rem; }
-  h6 { font-size: 1rem; }
+/* Prevent zoom on input focus on iOS */
+@media screen and (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }

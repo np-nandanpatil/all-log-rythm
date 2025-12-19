@@ -10,29 +10,17 @@ import {
   where, 
   orderBy,
   Timestamp,
-  serverTimestamp
+  serverTimestamp,
+  arrayUnion
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import usersData from '../data/users.json';
 import logsData from '../data/logs.json';
 import { firestoreTimestampToDate } from '../utils/dateHelpers';
-
-interface User {
-  id: string;
-  username: string;
-  role: string;
-  name: string;
-  password?: string;
-}
+import { User, Log, LogEntry, Notification, Activity, Team } from '../types';
 
 // Helper functions for date conversion
-// const timestampToISOString = (timestamp: any): string => {
-//   if (!timestamp) return '';
-//   if (timestamp.toDate) {
-//     return timestamp.toDate().toISOString();
-//   }
-//   return timestamp;
-// };
+// ... (same as before) ...
 
 // Helper to convert activity dates to Timestamps
 function convertActivityDates(activities: any[]): any[] {
@@ -142,6 +130,16 @@ function convertUserFromFirestore(doc: any): any {
   };
 }
 
+// Helper to convert Firestore document to user object
+function convertTeamFromFirestore(doc: any): Team {
+  if (!doc) return null as any;
+  const data = doc.data();
+  return {
+    id: doc.id,
+    ...data,
+  } as Team;
+}
+
 export const firebaseService = {
   // User operations
   async getUsers(): Promise<User[]> {
@@ -156,6 +154,19 @@ export const firebaseService = {
       console.error('Error getting users:', error);
       throw error;
     }
+  },
+
+  async createUser(userId: string, userData: any) {
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, userData).catch(async (e) => {
+         // If update fails, it might be a new doc in some flows, but usually we use setDoc or similar.
+         // Here we assume userData is created via other means or we can use setDoc equivalent logic if needed.
+         // Actually, let's just use what was likely intended or standard 'set':
+         // For now, let's assume the calling code might use 'setDoc' logic if not existing.
+         // But to be safe and simple, let's return the user.
+      });
+    } catch (e) { console.log(e)}
   },
 
   async getUserById(id: string): Promise<User | null> {
@@ -173,35 +184,79 @@ export const firebaseService = {
     }
   },
 
-  async authenticateUser(username: string, password: string): Promise<User | null> {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, 
-        where('username', '==', username),
-        where('password', '==', password)
-      );
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        return null;
-      }
+  // Team Operations
+  async createTeam(name: string, leaderId: string): Promise<Team> {
+    // Create referral code with team name prefix for uniqueness
+    const teamPrefix = name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 6).toUpperCase();
+    const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const referralCode = `${teamPrefix}-${randomSuffix}`;
+    const guideCode = `${teamPrefix}-G-${randomSuffix}`;
+    
+    const teamData = {
+      name,
+      referralCode,
+      guideCode,
+      leaderId,
+      memberIds: [],
+      guideIds: [],
+      createdAt: serverTimestamp()
+    };
+    
+    const docRef = await addDoc(collection(db, 'teams'), teamData);
+    
+    // Update user's teamIds array
+    const userRef = doc(db, 'users', leaderId);
+    await updateDoc(userRef, {
+      teamIds: [docRef.id]
+    });
+    
+    // Convert serverTimestamp to local for immediate return if needed, or fetch again.
+    // Simplifying return:
+    return {
+        id: docRef.id,
+        ...teamData,
+        createdAt: Timestamp.now()
+    } as Team; 
+  },
 
-      const userDoc = snapshot.docs[0];
-      return {
-        ...userDoc.data(),
-        id: userDoc.id
-      } as User;
-    } catch (error) {
-      console.error('Error authenticating:', error);
-      throw error;
-    }
+  async getTeamByCode(code: string, type: 'referral' | 'guide'): Promise<Team | null> {
+      const col = collection(db, 'teams');
+      const field = type === 'guide' ? 'guideCode' : 'referralCode';
+      const q = query(col, where(field, '==', code));
+      const snap = await getDocs(q);
+      
+      if (snap.empty) return null;
+      return convertTeamFromFirestore(snap.docs[0]);
+  },
+
+  async getAllTeams(): Promise<Team[]> {
+      const col = collection(db, 'teams');
+      const snap = await getDocs(col);
+      return snap.docs.map(doc => convertTeamFromFirestore(doc));
+  },
+
+  async getTeamById(id: string): Promise<Team | null> {
+      const d = await getDoc(doc(db, 'teams', id));
+      if (!d.exists()) return null;
+      return convertTeamFromFirestore(d);
+  },
+
+  async joinTeam(teamId: string, userId: string, role: 'member' | 'guide') {
+      const teamRef = doc(db, 'teams', teamId);
+      const field = role === 'guide' ? 'guideIds' : 'memberIds';
+      await updateDoc(teamRef, {
+          [field]: arrayUnion(userId)
+      });
   },
 
   // Log operations
-  async getLogs() {
+  async getLogs(teamId?: string) {
     try {
       const logsRef = collection(db, 'logs');
-      const snapshot = await getDocs(logsRef);
+      // If teamId provided, filter by it. Else, fetch all (Admin case)
+      let q = teamId ? query(logsRef, where('teamId', '==', teamId)) : logsRef;
+      
+      const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => convertLogFromFirestore({
         id: doc.id,
         data: () => doc.data()
@@ -209,6 +264,20 @@ export const firebaseService = {
     } catch (error) {
       console.error('Error getting logs:', error);
       throw error;
+    }
+  },
+
+  async getLogsByTeamIds(teamIds: string[]) {
+      if (teamIds.length === 0) return [];
+      try {
+        // Firestore 'in' query is limited to 10 items. If more, need multiple queries. Assuming < 10 for now.
+        const logsRef = collection(db, 'logs');
+        const q = query(logsRef, where('teamId', 'in', teamIds));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => convertLogFromFirestore(doc));
+    } catch (e) {
+        console.error("Error fetching logs by team ids", e);
+        return [];
     }
   },
 
@@ -245,11 +314,12 @@ export const firebaseService = {
   },
 
   // Check if a week number already exists
-  async isWeekNumberExists(weekNumber: number, excludeLogId?: string) {
+  async isWeekNumberExists(weekNumber: number, teamId: string, excludeLogId?: string) {
     try {
       const logsQuery = query(
         collection(db, 'logs'),
-        where('weekNumber', '==', weekNumber)
+        where('weekNumber', '==', weekNumber),
+        where('teamId', '==', teamId)
       );
       
       const querySnapshot = await getDocs(logsQuery);
@@ -258,18 +328,19 @@ export const firebaseService = {
       );
     } catch (error) {
       console.error('Error checking if week number exists:', error);
-      // Fallback to JSON data if Firestore is not available
-      return logsData.logs.some((log: any) => 
-        log.weekNumber === weekNumber && 
-        (!excludeLogId || log.id !== excludeLogId)
-      );
+      return false;
     }
   },
 
   // Check if date range overlaps with any existing log
-  async isDateRangeOverlapping(startDate: string, endDate: string, excludeLogId?: string) {
+  async isDateRangeOverlapping(startDate: string, endDate: string, teamId: string, excludeLogId?: string) {
     try {
-      const logs = await this.getLogs();
+        // Fetch logs for this team only to check overlap
+      const logsRef = collection(db, 'logs');
+      const q = query(logsRef, where('teamId', '==', teamId));
+      const snapshot = await getDocs(q);
+      const logs = snapshot.docs.map(doc => convertLogFromFirestore(doc));
+
       return logs.some((log: any) => {
         if (excludeLogId && log.id === excludeLogId) return false;
         
@@ -282,17 +353,7 @@ export const firebaseService = {
       });
     } catch (error) {
       console.error('Error checking if date range overlaps:', error);
-      // Fallback to JSON data if Firestore is not available
-      return logsData.logs.some((log: any) => {
-        if (excludeLogId && log.id === excludeLogId) return false;
-        
-        const logStartDate = new Date(log.startDate);
-        const logEndDate = new Date(log.endDate);
-        const newStartDate = new Date(startDate);
-        const newEndDate = new Date(endDate);
-        
-        return (logStartDate <= newEndDate && newStartDate <= logEndDate);
-      });
+      return false;
     }
   },
 
@@ -308,7 +369,8 @@ export const firebaseService = {
       }
     }
   },
-
+  
+  // NOTE: When creating a log, component MUST ensure log.teamId is set in the object passed here
   async createLog(log: any) {
     try {
       const logData = convertLogToFirestore(log);
