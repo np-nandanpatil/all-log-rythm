@@ -141,7 +141,7 @@ export function LogView() {
                            (currentUser?.role === 'guide' && log?.status === 'pending-guide') ||
                             isAdmin;
   const canResubmit = (currentUser?.id === log?.createdBy && log?.status === 'needs-revision') || isAdmin;
-  const canDelete = currentUser?.role === 'team_lead' || isAdmin;
+  const canDelete = currentUser?.role === 'team_lead' || isAdmin || (currentUser?.id === log?.createdBy && log?.status === 'draft');
 
   const handleAddComment = async () => {
     if (!log || !comment.trim()) return;

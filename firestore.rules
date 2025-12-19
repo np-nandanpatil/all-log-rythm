@@ -20,61 +20,51 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return getUserRole() == 'admin';
+    }
+
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated();
-      // Allow creation if the user is authenticated and matches the ID (e.g. initial sign up profile creation)
-      // or if it's an admin (not strictly defined yet, so sticking to owner for now)
-      allow write: if isOwner(userId); 
+      allow write: if isOwner(userId) || isAdmin(); 
     }
 
     // Logs collection
     match /logs/{logId} {
       allow read: if isAuthenticated();
-      
-      allow create: if isAuthenticated() && 
-                   request.resource.data.createdBy == request.auth.uid;
-      
-      allow update: if isAuthenticated() && (
-        // Allow owner to update if status is draft or needs-revision
-        (resource.data.createdBy == request.auth.uid && 
-         (resource.data.status == 'draft' || resource.data.status == 'needs-revision')) ||
-        
-        // Allow status updates by roles (simplified for now as we don't have custom claims set up yet)
-        // In a real strict environment, we would check request.resource.data.status vs resource.data.status
-        // and user role. 
-        // For now, allowing any authenticated user to update is too loose. 
-        // We will restrict to authenticated users, but trust the app logic for role checks 
-        // until we can implement custom claims or role-based logic in rules.
-        // A better approach without custom claims:
-        // getUserRole() == 'team_lead' || getUserRole() == 'guide' || getUserRole() == 'coordinator'
-         true // Placeholder: Strict rules require more setup (Custom Claims). 
-              // For this refactor, we ensure they are authenticated.
-      );
-
-      allow delete: if isAuthenticated() && (
-         // Only team_lead can delete? 
-         // For now, let's allow owner or if we implemented role check
-         true
-      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if (isAuthenticated() && (true)) || isAdmin();
     }
 
     // Teams collection
     match /teams/{teamId} {
-      // Anyone authenticated can read teams (they need to see team info)
       allow read: if isAuthenticated();
       
-      // Only authenticated users can create teams
       allow create: if isAuthenticated() && 
-                   request.resource.data.leaderId == request.auth.uid;
+                   (request.resource.data.leaderId == request.auth.uid || isAdmin());
       
-      // Only team leader can update their team
-      allow update: if isAuthenticated() && 
-                   resource.data.leaderId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.leaderId == request.auth.uid || 
+        isAdmin() ||
+        (
+             request.resource.data.leaderId == resource.data.leaderId && 
+             request.resource.data.name == resource.data.name
+        )
+      );
       
-      // Only team leader can delete their team
       allow delete: if isAuthenticated() && 
-                   resource.data.leaderId == request.auth.uid;
+                   (resource.data.leaderId == request.auth.uid || isAdmin());
+    }
+
+    // Invitations collection
+    match /invitations/{invitationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() || isAdmin(); 
     }
   }
 }

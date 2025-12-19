@@ -11,7 +11,8 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
-  arrayUnion
+  arrayUnion,
+  runTransaction
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import usersData from '../data/users.json';
@@ -184,6 +185,29 @@ export const firebaseService = {
     }
   },
 
+  async getUsersByIds(ids: string[]): Promise<User[]> {
+      if (!ids || ids.length === 0) return [];
+      try {
+          // Firestore 'in' query supports max 10 values.
+          // For now assuming small teams. If > 10, need chunking.
+          
+          // Actually, 'in' query works on fields. Here we need to fetch multiple docs by ID.
+          // There is no direct "get where ID in [...]" efficiently without where('documentId', 'in', [...]) which is tricky.
+          // Better approach for small sets (like a team roster): Promise.all with getDoc.
+          // For larger sets, we'd use where('uid', 'in', ids) but that needs index.
+          
+          // Given this is a team roster (usually < 20 people), Promise.all is perfectly fine and often faster than query for ID lookups.
+          const userDocs = await Promise.all(ids.map(id => getDoc(doc(db, 'users', id))));
+          
+          return userDocs
+              .filter(d => d.exists())
+              .map(d => ({ ...d.data(), id: d.id } as User));
+      } catch (error) {
+          console.error("Error fetching users by IDs:", error);
+          return [];
+      }
+  },
+
   // Team Operations
   async createTeam(name: string, leaderId: string): Promise<Team> {
     // Create referral code with team name prefix for uniqueness
@@ -241,12 +265,141 @@ export const firebaseService = {
       return convertTeamFromFirestore(d);
   },
 
-  async joinTeam(teamId: string, userId: string, role: 'member' | 'guide') {
+  async joinTeamById(teamId: string, userId: string, role: 'member' | 'guide') {
       const teamRef = doc(db, 'teams', teamId);
-      const field = role === 'guide' ? 'guideIds' : 'memberIds';
-      await updateDoc(teamRef, {
-          [field]: arrayUnion(userId)
+      const userRef = doc(db, 'users', userId);
+
+      await runTransaction(db, async (transaction: any) => {
+          const userDoc = await transaction.get(userRef);
+          if (!userDoc.exists()) throw new Error("User does not exist");
+          const teamDoc = await transaction.get(teamRef);
+          if (!teamDoc.exists()) throw new Error("Team does not exist");
+
+          const teamData = teamDoc.data();
+          if (teamData.memberIds?.includes(userId) || teamData.guideIds?.includes(userId)) {
+              // Already member, just ignore or throw? 
+              // Better to be idempotent since invitations might double fire
+              return; 
+          }
+
+          // Update Team
+          const field = role === 'guide' ? 'guideIds' : 'memberIds';
+          transaction.update(teamRef, {
+              [field]: arrayUnion(userId)
+          });
+
+          // Update User
+          transaction.update(userRef, {
+              teamIds: arrayUnion(teamId),
+              role: role // Update role if they joined as guide
+          });
       });
+  },
+
+  async joinTeamByCode(code: string, userId: string) {
+    try {
+      // 1. Find team by code (referral or guide)
+      const teamsRef = collection(db, 'teams');
+      const qRef = query(teamsRef, where('referralCode', '==', code));
+      const qGuide = query(teamsRef, where('guideCode', '==', code));
+      
+      const [refSnap, guideSnap] = await Promise.all([getDocs(qRef), getDocs(qGuide)]);
+      
+      let teamDoc: any = null;
+      let role: 'member' | 'guide' = 'member';
+
+      if (!refSnap.empty) {
+        teamDoc = refSnap.docs[0];
+        role = 'member';
+      } else if (!guideSnap.empty) {
+        teamDoc = guideSnap.docs[0];
+        role = 'guide';
+      } else {
+        throw new Error('Invalid code. Please check and try again.');
+      }
+
+      // 2. Delegate to ID-based join for consistency
+      await this.joinTeamById(teamDoc.id, userId, role);
+
+      return { success: true, teamName: teamDoc.data().name, role };
+
+    } catch (error) {
+      console.error('Error joining team:', error);
+      throw error;
+    }
+  },
+
+  // Invitation Operations
+  async createInvitation(teamId: string, email: string, role: 'member' | 'guide', invitedBy: string, invitedByName: string, teamName: string) {
+    const invitationData = {
+      teamId,
+      teamName,
+      invitedEmail: email.toLowerCase(),
+      invitedBy,
+      invitedByName,
+      role,
+      status: 'pending',
+      createdAt: serverTimestamp()
+    };
+    
+    const docRef = await addDoc(collection(db, 'invitations'), invitationData);
+    return {
+      id: docRef.id,
+      ...invitationData,
+      createdAt: Timestamp.now()
+    };
+  },
+
+  async getPendingInvitations(teamId: string) {
+    const q = query(
+      collection(db, 'invitations'),
+      where('teamId', '==', teamId),
+      where('status', '==', 'pending')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  },
+
+  async getInvitationsByEmail(email: string) {
+    const q = query(
+      collection(db, 'invitations'),
+      where('invitedEmail', '==', email.toLowerCase()),
+      where('status', '==', 'pending')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+  },
+  
+  async acceptInvitation(invitationId: string, userId: string) {
+    const invitationRef = doc(db, 'invitations', invitationId);
+    const invitationDoc = await getDoc(invitationRef);
+    
+    if (!invitationDoc.exists()) {
+      throw new Error('Invitation not found');
+    }
+    
+    const invitation = invitationDoc.data();
+    
+    // Add user to team (using unified method)
+    await this.joinTeamById(invitation.teamId, userId, invitation.role);
+    
+    // Mark invitation as accepted
+    await updateDoc(invitationRef, {
+      status: 'accepted'
+    });
+  },
+
+  async declineInvitation(invitationId: string) {
+    const invitationRef = doc(db, 'invitations', invitationId);
+    await updateDoc(invitationRef, {
+      status: 'declined'
+    });
   },
 
   // Log operations
@@ -544,6 +697,70 @@ export const firebaseService = {
       return true;
     } catch (error) {
       console.error('Error deleting all logs:', error);
+      throw error;
+    }
+  },
+
+  async deleteTeam(teamId: string) {
+    try {
+        const teamRef = doc(db, 'teams', teamId);
+        await deleteDoc(teamRef);
+        return true;
+    } catch (error) {
+        console.error('Error deleting team:', error);
+        throw error;
+    }
+  },
+
+  async getTeamInvitations(teamId: string) {
+    try {
+      const q = query(collection(db, 'invitations'), where('teamId', '==', teamId), where('status', '==', 'pending'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error fetching invitations:', error);
+      return [];
+    }
+  },
+
+  async cancelInvitation(invitationId: string) {
+    try {
+      await deleteDoc(doc(db, 'invitations', invitationId));
+    } catch (error) {
+      console.error('Error canceling invitation:', error);
+      throw error;
+    }
+  },
+
+  async removeTeamMember(teamId: string, userId: string, role: string) {
+    try {
+      const teamRef = doc(db, 'teams', teamId);
+      const userRef = doc(db, 'users', userId);
+
+      await runTransaction(db, async (transaction: any) => {
+        const teamDoc = await transaction.get(teamRef);
+        if (!teamDoc.exists()) throw new Error("Team does not exist");
+
+        const updates: any = {};
+        if (role === 'guide') {
+          const guides = teamDoc.data().guideIds || [];
+          updates.guideIds = guides.filter((id: string) => id !== userId);
+        } else {
+          const members = teamDoc.data().memberIds || [];
+          updates.memberIds = members.filter((id: string) => id !== userId);
+        }
+        transaction.update(teamRef, updates);
+
+        const userDoc = await transaction.get(userRef);
+        if (userDoc.exists()) {
+             const userTeams = userDoc.data().teamIds || [];
+             transaction.update(userRef, {
+                 teamIds: userTeams.filter((id: string) => id !== teamId)
+             });
+        }
+      });
+    } catch (error) {
+      console.error('Error removing team member:', error);
       throw error;
     }
   }

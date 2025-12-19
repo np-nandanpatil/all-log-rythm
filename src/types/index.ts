@@ -59,7 +59,7 @@ export interface Log {
   status: LogStatus;
   createdBy: string;
   createdByName: string; // Explicit field for easier display
-  teamId: string; // Critical for isolation
+  teamId: string | null; // Critical for isolation, null for admin logs
   createdAt: Timestamp;
   updatedBy?: string;
   updatedAt: Timestamp;

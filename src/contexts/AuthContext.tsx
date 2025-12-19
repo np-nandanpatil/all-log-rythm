@@ -49,26 +49,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userDoc.exists()) {
             console.log('DEBUG: User profile found');
             const userData = userDoc.data();
+            
+            // SUPER ADMIN ENFORCEMENT
+            let finalRole = userData.role as UserRole;
+            if (user.email === 'nandanpatilm15@gmail.com' && finalRole !== 'admin') {
+                console.log('DEBUG: Enforcing Super Admin Role for Creator');
+                finalRole = 'admin';
+                // Update Firestore to reflect this permanently
+                const { updateDoc } = await import('firebase/firestore');
+                await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
+            }
+
             setCurrentUser({
               uid: user.uid,
               name: userData.name || '',
-              role: userData.role as UserRole,
-              ...userData
+              ...userData,
+              role: finalRole // Ensure override
             } as User);
           } else {
             console.warn('DEBUG: User document NOT found for', user.uid, '- Auto-creating basic profile');
             
             // Auto-create a basic user document for missing profiles
-            // This handles cases where Firebase Auth account exists but Firestore doc is missing
+            const isSuperAdmin = user.email === 'nandanpatilm15@gmail.com';
             const basicUserData: User = {
               id: user.uid,
               uid: user.uid,
-              name: user.displayName || 'User', // Use display name if available, otherwise placeholder
+              name: user.displayName || 'User', 
               email: user.email || '',
-              role: 'student' as UserRole, // Default role - user should update this
+              role: (isSuperAdmin ? 'admin' : 'member') as UserRole, // Default 'member'
               teamIds: [],
               createdAt: new Date().toISOString(),
-              profileIncomplete: true // Flag to prompt profile completion
+              profileIncomplete: !isSuperAdmin // Admins might not need this flow
             };
             
             // Create the user document in Firestore
@@ -129,16 +140,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Handle Team Creation if needed
       let teamIdToJoin: string | null = null;
       let newTeamId: string | null = null;
+      let invitationIdToAccept: string | null = null;
+
+      const { firebaseService } = await import('../services');
 
       if (teamData?.createTeam) {
-          const { firebaseService } = await import('../services');
           const team = await firebaseService.createTeam(teamData.teamName, uid);
           newTeamId = team.id;
-      } else if (teamData?.joinCode) {
-          const { firebaseService } = await import('../services');
-          const type = userData.role === 'guide' ? 'guide' : 'referral';
-          const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
-          if (team) teamIdToJoin = team.id;
+      } else if (['member', 'guide'].includes(userData.role)) {
+          // 1. Check for email invitations
+          console.log('DEBUG: Checking invitations for', email);
+          const invitations = await firebaseService.getInvitationsByEmail(email);
+          if (invitations.length > 0) {
+              const invitation: any = invitations[0];
+              console.log('DEBUG: Found invitation', invitation.id, 'for team', invitation.teamId);
+              teamIdToJoin = invitation.teamId;
+              invitationIdToAccept = invitation.id;
+          } 
+          // 2. If no invitation, check referral code
+          else if (teamData?.joinCode) {
+              const type = userData.role === 'guide' ? 'guide' : 'referral';
+              const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
+              if (team) teamIdToJoin = team.id;
+          }
       }
 
       const teamIds = [];
@@ -161,11 +185,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(doc(db, 'users', uid), newUser);
       console.log('DEBUG: User document written successfully');
 
-      // Join Team if needed
-      if (teamIdToJoin) {
-          const { firebaseService } = await import('../services');
-          await firebaseService.joinTeam(teamIdToJoin, uid, userData.role);
+      // Join Team Logic
+      if (invitationIdToAccept && teamIdToJoin) {
+          console.log('DEBUG: Accepting invitation', invitationIdToAccept);
+          await firebaseService.acceptInvitation(invitationIdToAccept, uid);
+      } else if (teamIdToJoin) {
+          console.log('DEBUG: Joining team via code', teamIdToJoin);
+          await firebaseService.joinTeamById(teamIdToJoin, uid, userData.role);
       }
+
 
       // Manually set state to avoid race conditions
       console.log('DEBUG: Manually setting current user');

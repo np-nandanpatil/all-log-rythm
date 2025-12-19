@@ -4,6 +4,7 @@ import { IconAt, IconLock } from '@tabler/icons-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { firebaseService } from '../services';
 
 interface AuthModalProps {
   opened: boolean;
@@ -52,8 +53,11 @@ export function AuthModal({ opened, onClose, mode, onModeChange }: AuthModalProp
             teamData.createTeam = true;
             teamData.teamName = teamName;
         } else if (role === 'member' || role === 'guide') {
-             if (!referralCode.trim()) throw new Error('Unique Code is required to join a team.');
-             teamData.joinCode = referralCode.trim();
+             // Pass referral code if entered. 
+             // Logic to check invitations is now handled in AuthContext AFTER signup.
+             if (referralCode.trim()) {
+                 teamData.joinCode = referralCode.trim();
+             }
         }
 
         await signup(email, password, { name, role }, teamData);
@@ -146,11 +150,11 @@ export function AuthModal({ opened, onClose, mode, onModeChange }: AuthModalProp
 
                 {(role === 'member' || role === 'guide') && (
                   <TextInput
-                    label={role === 'guide' ? "Guide Code" : "Referral Code"}
-                    placeholder="Enter the 6-digit code"
+                    label={role === 'guide' ? "Guide Code (Optional)" : "Referral Code (Optional)"}
+                    placeholder="Leave empty if invited by email"
+                    description="Skip if you already have an email invitation"
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
-                    required
                     radius="md"
                   />
                 )}

@@ -34,7 +34,7 @@ function AppContent() {
           <Route
             path="/logs/new"
             element={
-              <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+              <ProtectedRoute allowedRoles={['member', 'team_lead', 'admin']}>
                 <LogForm />
               </ProtectedRoute>
             }
@@ -50,7 +50,7 @@ function AppContent() {
           <Route
             path="/logs/:id/edit"
             element={
-              <ProtectedRoute allowedRoles={['student', 'team_lead']}>
+              <ProtectedRoute allowedRoles={['member', 'team_lead', 'admin']}>
                 <LogForm />
               </ProtectedRoute>
             }

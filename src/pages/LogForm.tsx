@@ -170,16 +170,26 @@ export function LogForm() {
   };
 
   const createLogData = (status: string) => {
-    if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
-      throw new Error('Missing required data');
+    // Detailed validation
+    const missingFields = [];
+    if (!startDate) missingFields.push('Start Date');
+    if (!endDate) missingFields.push('End Date');
+    if (!currentUser?.id) missingFields.push('User ID');
+    if (!currentUser?.name) missingFields.push('User Name');
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required profile data: ${missingFields.join(', ')}. Please update your profile.`);
     }
 
     // Get user's primary team ID
     // Team leaders and admins can create logs without a team
     // Regular members must be part of a team
     const teamId = currentUser.teamIds?.[0];
+    
+    // Strict check for members, but clearer error
     if (!teamId && currentUser.role !== 'team_lead' && currentUser.role !== 'admin') {
-      throw new Error('You must be part of a team to create logs.\n\nPlease go to your Profile page to join an existing team using a referral code.');
+       console.error('DEBUG: User has no teamIds:', currentUser);
+       throw new Error('You appear not to be in a team. Please try refreshing the page or joining a team again.');
     }
 
     return {
@@ -194,8 +204,8 @@ export function LogForm() {
       status,
       createdBy: currentUser.id,
       createdByName: currentUser.name,
-      createdByUsername: currentUser.username,
-      teamId, // Critical for team isolation
+      createdByUsername: currentUser.username || '',
+      teamId: teamId || null, // Ensure null if undefined to prevents Firestore error
       createdAt: formatDateForStorage(new Date()),
       updatedAt: formatDateForStorage(new Date())
     };
