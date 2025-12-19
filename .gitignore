@@ -25,6 +25,9 @@ dist-ssr
 
 
 
-src/config/firebase.ts
-src/config/firebase.ts
-*/firebase.ts
+# Environment Variables
+.env
+.env.local
+
+# Allow committing the config file (it now uses env vars)
+!src/config/firebase.ts
