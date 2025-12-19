@@ -467,7 +467,8 @@ export const firebaseService = {
   },
 
   // Check if a week number already exists
-  async isWeekNumberExists(weekNumber: number, teamId: string, excludeLogId?: string) {
+  async isWeekNumberExists(weekNumber: number, teamId: string | null, excludeLogId?: string) {
+    if (!teamId) return false; // Skip check for admin logs without team
     try {
       const logsQuery = query(
         collection(db, 'logs'),
@@ -486,7 +487,8 @@ export const firebaseService = {
   },
 
   // Check if date range overlaps with any existing log
-  async isDateRangeOverlapping(startDate: string, endDate: string, teamId: string, excludeLogId?: string) {
+  async isDateRangeOverlapping(startDate: string, endDate: string, teamId: string | null, excludeLogId?: string) {
+    if (!teamId) return false; // Skip check for admin logs without team
     try {
         // Fetch logs for this team only to check overlap
       const logsRef = collection(db, 'logs');
