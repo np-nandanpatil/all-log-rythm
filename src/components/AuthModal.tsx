@@ -150,11 +150,12 @@ export function AuthModal({ opened, onClose, mode, onModeChange }: AuthModalProp
 
                 {(role === 'member' || role === 'guide') && (
                   <TextInput
-                    label={role === 'guide' ? "Guide Code (Optional)" : "Referral Code (Optional)"}
-                    placeholder="Leave empty if invited by email"
-                    description="Skip if you already have an email invitation"
+                    label={role === 'guide' ? "Guide Code (Required)" : "Referral Code (Required)"}
+                    placeholder="Enter unique code provided by team leader"
+                    description="You must join a team to sign up."
                     value={referralCode}
                     onChange={(e) => setReferralCode(e.target.value)}
+                    required // Enforced in UI
                     radius="md"
                   />
                 )}

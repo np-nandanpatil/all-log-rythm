@@ -162,6 +162,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               const type = userData.role === 'guide' ? 'guide' : 'referral';
               const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
               if (team) teamIdToJoin = team.id;
+          } else {
+              // MANDATORY CHECK: If no invitation and no code, BLOCK SIGNUP
+              console.error('DEBUG: No referral code provided for signup');
+              // Clean up auth user since we are rejecting the signup
+              const { deleteUser } = await import('firebase/auth');
+              await deleteUser(userCredential.user);
+              throw new Error('Referral Code is MANDATORY. You must join a team to sign up.');
           }
       }
 
