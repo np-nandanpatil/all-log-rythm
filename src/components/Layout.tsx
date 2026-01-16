@@ -99,7 +99,7 @@ export function Layout({ children }: LayoutProps) {
       <AppShell.Header hiddenFrom="sm">
         <Group h="100%" px="md">
           <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-          <Text fw={700} size="lg">All Log Rythm</Text>
+          <Text fw={700} size="lg">LogSphere</Text>
         </Group>
       </AppShell.Header>
 
@@ -119,7 +119,7 @@ export function Layout({ children }: LayoutProps) {
             </Avatar>
             {(desktopOpened || isMobile) && (
               <Stack gap={0}>
-                <Text size="lg" fw={800} style={{ letterSpacing: '-0.5px' }}>Log Rythm</Text>
+                <Text size="lg" fw={800} style={{ letterSpacing: '-0.5px' }}>LogSphere</Text>
                 <Text size="xs" c="dimmed" fw={500}>Internship Management</Text>
               </Stack>
             )}

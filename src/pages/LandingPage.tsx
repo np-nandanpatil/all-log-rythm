@@ -149,7 +149,7 @@ export default function LandingPage() {
                 Ready to Get Started?
               </Title>
               <Text size="lg" maw={600} mx="auto" style={{ opacity: 0.95 }}>
-                Join students and teams already using All Log Rythm to streamline their internship tracking.
+                Join students and teams already using LogSphere to streamline their internship tracking.
               </Text>
               <Button
                 size="xl"
@@ -169,7 +169,7 @@ export default function LandingPage() {
         <Box py="xl" bg="gray.1">
           <Container>
             <Text ta="center" c="dimmed" size="sm">
-              © 2025 All Log Rythm. Built for academic excellence.
+              © 2025 LogSphere. Built for academic excellence.
             </Text>
           </Container>
         </Box>
