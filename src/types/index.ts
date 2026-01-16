@@ -28,7 +28,7 @@ export interface Team {
   description?: string; // Project Description
 }
 
-export type LogStatus = 'draft' | 'pending-lead' | 'pending-guide' | 'approved' | 'needs-revision';
+export type LogStatus = 'draft' | 'pending-lead' | 'pending-guide' | 'approved' | 'final-approved' | 'needs-revision';
 
 export interface LogEntry {
   author: string;

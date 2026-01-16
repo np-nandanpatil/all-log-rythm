@@ -1,14 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
+import { useReactToPrint } from 'react-to-print';
 import { Milestones } from '../components/Milestones';
 import { ProjectAnalytics } from '../components/ProjectAnalytics';
+import { ReportTemplate } from '../components/ReportTemplate';
 import { Title, Button, Group, Text, Stack, SimpleGrid, Badge, Card, ThemeIcon, ActionIcon, Menu, Box, Loader, Alert, Paper, Avatar, Container, TextInput } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseService } from '../services';
 import { notifications } from '@mantine/notifications';
 import { Layout } from '../components/Layout';
-import { IconPlus, IconDotsVertical, IconChartBar, IconCheck, IconClock, IconUsers, IconArrowRight, IconNotebook, IconUsersGroup, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconDotsVertical, IconChartBar, IconCheck, IconClock, IconUsers, IconArrowRight, IconNotebook, IconUsersGroup, IconEdit, IconTrash, IconFileTypePdf } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+
+
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -40,6 +44,13 @@ export function Dashboard() {
     const [loading, setLoading] = useState(true);
     // State for Team Roster
     const [teamRoster, setTeamRoster] = useState<{ leader?: any, guides: any[], members: any[] }>({ guides: [], members: [] });
+
+    // PDF Export Logic
+    const componentRef = useRef<HTMLDivElement>(null);
+    const handlePrint = useReactToPrint({
+        contentRef: componentRef,
+        documentTitle: `LogSphere_Report_${new Date().toISOString().split('T')[0]}`,
+    });
 
 
 
@@ -344,6 +355,17 @@ export function Dashboard() {
     // LOGS VIEW
     return (
         <Layout>
+            {/* Hidden Print Template */}
+            <div style={{ display: 'none' }}>
+                <ReportTemplate
+                    ref={componentRef}
+                    logs={displayedLogs}
+                    totalHours={totalHours}
+                    team={teams.find(t => t.id === (selectedTeam || teams[0]?.id))}
+                    studentName={currentUser?.name || ''}
+                    teamRoster={teamRoster}
+                />
+            </div>
             <Container size="xl" py="xl" px="md" style={{ flex: 1 }}>
                 <Stack gap="xl">
                     {/* Header */}
@@ -388,6 +410,16 @@ export function Dashboard() {
                                 </Menu>
                             </Group>
                         )}
+
+                        <Button
+                            variant="light"
+                            color="red"
+                            leftSection={<IconFileTypePdf size={18} />}
+                            onClick={() => handlePrint()}
+                            mr="xs"
+                        >
+                            Export Report
+                        </Button>
 
                         {((currentUser?.role !== 'guide' && selectedTeam === null) || (currentUser?.role === 'team_lead' || currentUser?.role === 'member')) && (
                             <Button
