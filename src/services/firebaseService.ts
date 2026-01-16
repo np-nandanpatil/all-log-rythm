@@ -1,13 +1,13 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
   orderBy,
   Timestamp,
   serverTimestamp,
@@ -15,10 +15,10 @@ import {
   runTransaction
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import usersData from '../data/users.json';
+
 import logsData from '../data/logs.json';
-import { firestoreTimestampToDate } from '../utils/dateHelpers';
-import { User, Log, LogEntry, Notification, Activity, Team } from '../types';
+import { firestoreTimestampToDate, toFirestoreTimestamp } from '../utils/dateHelpers';
+import { User, Team } from '../types';
 
 // Helper functions for date conversion
 // ... (same as before) ...
@@ -26,58 +26,23 @@ import { User, Log, LogEntry, Notification, Activity, Team } from '../types';
 // Helper to convert activity dates to Timestamps
 function convertActivityDates(activities: any[]): any[] {
   if (!activities || !Array.isArray(activities)) return [];
-  
-  const convertToTimestamp = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    try {
-      const date = new Date(dateStr);
-      const utcDate = new Date(Date.UTC(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        0, 0, 0, 0
-      ));
-      return Timestamp.fromDate(utcDate);
-    } catch (error) {
-      console.error('Error converting activity date to timestamp:', error);
-      return null;
-    }
-  };
-  
+
   return activities.map(activity => ({
     ...activity,
-    date: convertToTimestamp(activity.date)
+    // Use the centralized date helper which ensures UTC Midnight
+    date: toFirestoreTimestamp(activity.date)
   }));
 }
 
 // Helper to convert log dates to Timestamps
 function convertLogDates(log: any): any {
   if (!log) return log;
-  
-  const convertToTimestamp = (dateStr: string | null) => {
-    if (!dateStr) return null;
-    try {
-      // Parse the ISO string to a Date object
-      const date = new Date(dateStr);
-      // Create a new date at midnight UTC
-      const utcDate = new Date(Date.UTC(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        0, 0, 0, 0
-      ));
-      return Timestamp.fromDate(utcDate);
-    } catch (error) {
-      console.error('Error converting date to timestamp:', error);
-      return null;
-    }
-  };
-  
+
   return {
     ...log,
-    startDate: convertToTimestamp(log.startDate),
-    endDate: convertToTimestamp(log.endDate),
-    createdAt: log.createdAt ? convertToTimestamp(log.createdAt) : serverTimestamp(),
+    startDate: toFirestoreTimestamp(log.startDate),
+    endDate: toFirestoreTimestamp(log.endDate),
+    createdAt: log.createdAt ? Timestamp.now() : serverTimestamp(), // If updating, keep orig? Usually createdAt is immutable or handled by trigger. For client create, serverTimestamp.
     updatedAt: serverTimestamp()
   };
 }
@@ -85,25 +50,25 @@ function convertLogDates(log: any): any {
 // Helper to convert log to Firestore format
 function convertLogToFirestore(log: any): any {
   if (!log) return null;
-  
+
   const data = { ...log };
   delete data.id;
-  
+
   // Convert dates to Timestamps
   const convertedData = convertLogDates(data);
-  
+
   // Convert activity dates to Timestamps
   if (data.activities && Array.isArray(data.activities)) {
     convertedData.activities = convertActivityDates(data.activities);
   }
-  
+
   return convertedData;
 }
 
 // Helper to convert Firestore document to log object
 function convertLogFromFirestore(doc: any): any {
   if (!doc) return null;
-  
+
   const data = doc.data();
   return {
     id: doc.id,
@@ -119,17 +84,7 @@ function convertLogFromFirestore(doc: any): any {
   };
 }
 
-// Helper to convert Firestore document to user object
-function convertUserFromFirestore(doc: any): any {
-  if (!doc) return null;
-  
-  const data = doc.data();
-  return {
-    id: doc.id,
-    ...data,
-    createdAt: data.createdAt ? Timestamp.fromDate(new Date(data.createdAt)) : null
-  };
-}
+
 
 // Helper to convert Firestore document to user object
 function convertTeamFromFirestore(doc: any): Team {
@@ -160,14 +115,14 @@ export const firebaseService = {
   async createUser(userId: string, userData: any) {
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, userData).catch(async (e) => {
-         // If update fails, it might be a new doc in some flows, but usually we use setDoc or similar.
-         // Here we assume userData is created via other means or we can use setDoc equivalent logic if needed.
-         // Actually, let's just use what was likely intended or standard 'set':
-         // For now, let's assume the calling code might use 'setDoc' logic if not existing.
-         // But to be safe and simple, let's return the user.
+      await updateDoc(userRef, userData).catch(async () => {
+        // If update fails, it might be a new doc in some flows, but usually we use setDoc or similar.
+        // Here we assume userData is created via other means or we can use setDoc equivalent logic if needed.
+        // Actually, let's just use what was likely intended or standard 'set':
+        // For now, let's assume the calling code might use 'setDoc' logic if not existing.
+        // But to be safe and simple, let's return the user.
       });
-    } catch (e) { console.log(e)}
+    } catch (e) { console.log(e) }
   },
 
   async getUserById(id: string): Promise<User | null> {
@@ -186,26 +141,17 @@ export const firebaseService = {
   },
 
   async getUsersByIds(ids: string[]): Promise<User[]> {
-      if (!ids || ids.length === 0) return [];
-      try {
-          // Firestore 'in' query supports max 10 values.
-          // For now assuming small teams. If > 10, need chunking.
-          
-          // Actually, 'in' query works on fields. Here we need to fetch multiple docs by ID.
-          // There is no direct "get where ID in [...]" efficiently without where('documentId', 'in', [...]) which is tricky.
-          // Better approach for small sets (like a team roster): Promise.all with getDoc.
-          // For larger sets, we'd use where('uid', 'in', ids) but that needs index.
-          
-          // Given this is a team roster (usually < 20 people), Promise.all is perfectly fine and often faster than query for ID lookups.
-          const userDocs = await Promise.all(ids.map(id => getDoc(doc(db, 'users', id))));
-          
-          return userDocs
-              .filter(d => d.exists())
-              .map(d => ({ ...d.data(), id: d.id } as User));
-      } catch (error) {
-          console.error("Error fetching users by IDs:", error);
-          return [];
-      }
+    if (!ids || ids.length === 0) return [];
+    try {
+      const userDocs = await Promise.all(ids.map(id => getDoc(doc(db, 'users', id))));
+
+      return userDocs
+        .filter(d => d.exists())
+        .map(d => ({ ...d.data(), id: d.id } as User));
+    } catch (error) {
+      console.error("Error fetching users by IDs:", error);
+      return [];
+    }
   },
 
   // Team Operations
@@ -215,7 +161,7 @@ export const firebaseService = {
     const randomSuffix = Math.random().toString(36).substring(2, 8).toUpperCase();
     const referralCode = `${teamPrefix}-${randomSuffix}`;
     const guideCode = `${teamPrefix}-G-${randomSuffix}`;
-    
+
     const teamData = {
       name,
       referralCode,
@@ -225,86 +171,84 @@ export const firebaseService = {
       guideIds: [],
       createdAt: serverTimestamp()
     };
-    
+
     const docRef = await addDoc(collection(db, 'teams'), teamData);
-    
+
     // Update user's teamIds array
     const userRef = doc(db, 'users', leaderId);
     await updateDoc(userRef, {
-      teamIds: [docRef.id]
+      teamIds: arrayUnion(docRef.id)
     });
-    
+
     // Convert serverTimestamp to local for immediate return if needed, or fetch again.
     // Simplifying return:
     return {
-        id: docRef.id,
-        ...teamData,
-        createdAt: Timestamp.now()
-    } as Team; 
+      id: docRef.id,
+      ...teamData,
+      createdAt: Timestamp.now()
+    } as Team;
   },
 
   async getTeamByCode(code: string, type: 'referral' | 'guide'): Promise<Team | null> {
-      const col = collection(db, 'teams');
-      const field = type === 'guide' ? 'guideCode' : 'referralCode';
-      const q = query(col, where(field, '==', code));
-      const snap = await getDocs(q);
-      
-      if (snap.empty) return null;
-      return convertTeamFromFirestore(snap.docs[0]);
+    const col = collection(db, 'teams');
+    const field = type === 'guide' ? 'guideCode' : 'referralCode';
+    const q = query(col, where(field, '==', code));
+    const snap = await getDocs(q);
+
+    if (snap.empty) return null;
+    return convertTeamFromFirestore(snap.docs[0]);
   },
 
   async getAllTeams(): Promise<Team[]> {
-      const col = collection(db, 'teams');
-      const snap = await getDocs(col);
-      return snap.docs.map(doc => convertTeamFromFirestore(doc));
+    const col = collection(db, 'teams');
+    const snap = await getDocs(col);
+    return snap.docs.map(doc => convertTeamFromFirestore(doc));
   },
 
   async getTeamById(id: string): Promise<Team | null> {
-      const d = await getDoc(doc(db, 'teams', id));
-      if (!d.exists()) return null;
-      return convertTeamFromFirestore(d);
+    const d = await getDoc(doc(db, 'teams', id));
+    if (!d.exists()) return null;
+    return convertTeamFromFirestore(d);
   },
 
   async joinTeamById(teamId: string, userId: string, role: 'member' | 'guide') {
-      const teamRef = doc(db, 'teams', teamId);
-      const userRef = doc(db, 'users', userId);
+    const teamRef = doc(db, 'teams', teamId);
+    const userRef = doc(db, 'users', userId);
 
-      await runTransaction(db, async (transaction: any) => {
-          const userDoc = await transaction.get(userRef);
-          if (!userDoc.exists()) throw new Error("User does not exist");
-          const teamDoc = await transaction.get(teamRef);
-          if (!teamDoc.exists()) throw new Error("Team does not exist");
+    await runTransaction(db, async (transaction: any) => {
+      const userDoc = await transaction.get(userRef);
+      if (!userDoc.exists()) throw new Error("User does not exist");
+      const teamDoc = await transaction.get(teamRef);
+      if (!teamDoc.exists()) throw new Error("Team does not exist");
 
-          const teamData = teamDoc.data();
-          if (teamData.memberIds?.includes(userId) || teamData.guideIds?.includes(userId)) {
-              // Already member, just ignore or throw? 
-              // Better to be idempotent since invitations might double fire
-              return; 
-          }
+      const teamData = teamDoc.data();
+      if (teamData.memberIds?.includes(userId) || teamData.guideIds?.includes(userId)) {
+        return;
+      }
 
-          // Update Team
-          const field = role === 'guide' ? 'guideIds' : 'memberIds';
-          transaction.update(teamRef, {
-              [field]: arrayUnion(userId)
-          });
-
-          // Update User
-          transaction.update(userRef, {
-              teamIds: arrayUnion(teamId),
-              role: role // Update role if they joined as guide
-          });
+      // Update Team
+      const field = role === 'guide' ? 'guideIds' : 'memberIds';
+      transaction.update(teamRef, {
+        [field]: arrayUnion(userId)
       });
+
+      // Update User
+      transaction.update(userRef, {
+        teamIds: arrayUnion(teamId),
+        role: role // Update role if they joined as guide
+      });
+    });
   },
 
-  async joinTeamByCode(code: string, userId: string) {
+  async joinTeamByCode(code: string, userId: string, userEmail: string, userName: string) {
     try {
       // 1. Find team by code (referral or guide)
       const teamsRef = collection(db, 'teams');
       const qRef = query(teamsRef, where('referralCode', '==', code));
       const qGuide = query(teamsRef, where('guideCode', '==', code));
-      
+
       const [refSnap, guideSnap] = await Promise.all([getDocs(qRef), getDocs(qGuide)]);
-      
+
       let teamDoc: any = null;
       let role: 'member' | 'guide' = 'member';
 
@@ -318,10 +262,41 @@ export const firebaseService = {
         throw new Error('Invalid code. Please check and try again.');
       }
 
-      // 2. Delegate to ID-based join for consistency
-      await this.joinTeamById(teamDoc.id, userId, role);
+      // 2. CHECK if already a member
+      const teamData = teamDoc.data();
+      if (teamData.memberIds?.includes(userId) || teamData.guideIds?.includes(userId)) {
+        throw new Error('You are already a member of this team.');
+      }
 
-      return { success: true, teamName: teamDoc.data().name, role };
+      // 3. CHECK if pending request exists
+      const invRef = collection(db, 'invitations');
+      const qPending = query(invRef,
+        where('teamId', '==', teamDoc.id),
+        where('invitedEmail', '==', userEmail),
+        where('status', '==', 'pending')
+      );
+      const pendingSnap = await getDocs(qPending);
+      if (!pendingSnap.empty) {
+        throw new Error('You already have a pending request for this team.');
+      }
+
+      // 4. CREATE Join Request (Type: 'request')
+      // Instead of joining directly, we create a pending 'request'
+      const requestData = {
+        teamId: teamDoc.id,
+        teamName: teamData.name,
+        invitedEmail: userEmail,
+        invitedBy: userId, // User requested it
+        invitedByName: userName,
+        role: role,
+        type: 'request', // NEW FIELD: 'request' (inbound) vs 'invite' (outbound)
+        status: 'pending',
+        createdAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'invitations'), requestData);
+
+      return { success: true, teamName: teamData.name, role, status: 'pending_approval' };
 
     } catch (error) {
       console.error('Error joining team:', error);
@@ -338,10 +313,11 @@ export const firebaseService = {
       invitedBy,
       invitedByName,
       role,
+      type: 'invite', // Explicit type for outbound invites
       status: 'pending',
       createdAt: serverTimestamp()
     };
-    
+
     const docRef = await addDoc(collection(db, 'invitations'), invitationData);
     return {
       id: docRef.id,
@@ -375,20 +351,20 @@ export const firebaseService = {
       ...doc.data()
     }));
   },
-  
+
   async acceptInvitation(invitationId: string, userId: string) {
     const invitationRef = doc(db, 'invitations', invitationId);
     const invitationDoc = await getDoc(invitationRef);
-    
+
     if (!invitationDoc.exists()) {
       throw new Error('Invitation not found');
     }
-    
+
     const invitation = invitationDoc.data();
-    
+
     // Add user to team (using unified method)
     await this.joinTeamById(invitation.teamId, userId, invitation.role);
-    
+
     // Mark invitation as accepted
     await updateDoc(invitationRef, {
       status: 'accepted'
@@ -402,13 +378,83 @@ export const firebaseService = {
     });
   },
 
+  async getPendingJoinRequests(teamId: string) {
+    const q = query(
+      collection(db, 'invitations'),
+      where('teamId', '==', teamId),
+      where('status', '==', 'pending'),
+      where('type', '==', 'request')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  },
+
+  async approveJoinRequest(requestId: string) {
+    try {
+      // 0. Get the request first (Source of Truth)
+      const reqRef = doc(db, 'invitations', requestId);
+      const reqDoc = await getDoc(reqRef);
+      if (!reqDoc.exists()) throw new Error("Request not found");
+      const reqData = reqDoc.data();
+
+      // Extract required data from the request doc
+      const teamId = reqData.teamId;
+      const userId = reqData.invitedBy; // The user who requested to join
+      const role = reqData.role as 'member' | 'guide';
+      const userEmail = reqData.invitedEmail;
+
+      if (!teamId || !userId || !role) {
+        throw new Error("Invalid request data: Missing teamId, userId, or role.");
+      }
+
+      // 1. Update TEAM only (Leader has permission)
+      // We do NOT update the User doc here because of Firestore Rules (only Owner can write to User doc).
+      // The User's 'teamIds' will be synced lazily when they log in or refresh.
+      const teamRef = doc(db, 'teams', teamId);
+      const field = role === 'guide' ? 'guideIds' : 'memberIds';
+      await updateDoc(teamRef, {
+        [field]: arrayUnion(userId)
+      });
+
+      // 2. Mark request as approved
+      await updateDoc(reqRef, { status: 'approved' });
+
+      // 3. CLEANUP: Delete any other pending 'invitations' for this email in this team
+      if (userEmail) {
+        const invRef = collection(db, 'invitations');
+        const q = query(invRef,
+          where('teamId', '==', teamId),
+          where('invitedEmail', '==', userEmail),
+          where('status', '==', 'pending')
+        );
+        const snap = await getDocs(q);
+        const deletePromises = snap.docs.map(d => deleteDoc(d.ref));
+        await Promise.all(deletePromises);
+      }
+
+    } catch (error) {
+      console.error("Error approving request:", error);
+      throw error;
+    }
+  },
+
+  async rejectJoinRequest(requestId: string) {
+    try {
+      const reqRef = doc(db, 'invitations', requestId);
+      await updateDoc(reqRef, { status: 'rejected' });
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      throw error;
+    }
+  },
+
   // Log operations
   async getLogs(teamId?: string) {
     try {
       const logsRef = collection(db, 'logs');
       // If teamId provided, filter by it. Else, fetch all (Admin case)
       let q = teamId ? query(logsRef, where('teamId', '==', teamId)) : logsRef;
-      
+
       const snapshot = await getDocs(q);
       return snapshot.docs.map(doc => convertLogFromFirestore({
         id: doc.id,
@@ -421,16 +467,16 @@ export const firebaseService = {
   },
 
   async getLogsByTeamIds(teamIds: string[]) {
-      if (teamIds.length === 0) return [];
-      try {
-        // Firestore 'in' query is limited to 10 items. If more, need multiple queries. Assuming < 10 for now.
-        const logsRef = collection(db, 'logs');
-        const q = query(logsRef, where('teamId', 'in', teamIds));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => convertLogFromFirestore(doc));
+    if (teamIds.length === 0) return [];
+    try {
+      // Firestore 'in' query is limited to 10 items. If more, need multiple queries. Assuming < 10 for now.
+      const logsRef = collection(db, 'logs');
+      const q = query(logsRef, where('teamId', 'in', teamIds));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => convertLogFromFirestore(doc));
     } catch (e) {
-        console.error("Error fetching logs by team ids", e);
-        return [];
+      console.error("Error fetching logs by team ids", e);
+      return [];
     }
   },
 
@@ -475,9 +521,9 @@ export const firebaseService = {
         where('weekNumber', '==', weekNumber),
         where('teamId', '==', teamId)
       );
-      
+
       const querySnapshot = await getDocs(logsQuery);
-      return querySnapshot.docs.some(doc => 
+      return querySnapshot.docs.some(doc =>
         !excludeLogId || doc.id !== excludeLogId
       );
     } catch (error) {
@@ -490,7 +536,7 @@ export const firebaseService = {
   async isDateRangeOverlapping(startDate: string, endDate: string, teamId: string | null, excludeLogId?: string) {
     if (!teamId) return false; // Skip check for admin logs without team
     try {
-        // Fetch logs for this team only to check overlap
+      // Fetch logs for this team only to check overlap
       const logsRef = collection(db, 'logs');
       const q = query(logsRef, where('teamId', '==', teamId));
       const snapshot = await getDocs(q);
@@ -498,12 +544,12 @@ export const firebaseService = {
 
       return logs.some((log: any) => {
         if (excludeLogId && log.id === excludeLogId) return false;
-        
+
         const logStartDate = new Date(log.startDate);
         const logEndDate = new Date(log.endDate);
         const newStartDate = new Date(startDate);
         const newEndDate = new Date(endDate);
-        
+
         return (logStartDate <= newEndDate && newStartDate <= logEndDate);
       });
     } catch (error) {
@@ -516,7 +562,7 @@ export const firebaseService = {
   validateActivityDates(activities: any[], startDate: string, endDate: string) {
     const logStartDate = new Date(startDate);
     const logEndDate = new Date(endDate);
-    
+
     for (const activity of activities) {
       const activityDate = new Date(activity.date);
       if (activityDate < logStartDate || activityDate > logEndDate) {
@@ -524,19 +570,19 @@ export const firebaseService = {
       }
     }
   },
-  
+
   // NOTE: When creating a log, component MUST ensure log.teamId is set in the object passed here
   async createLog(log: any) {
     try {
       const logData = convertLogToFirestore(log);
       const docRef = await addDoc(collection(db, 'logs'), logData);
-      
+
       // Fetch the saved document to ensure we have the correct Firestore timestamps
       const savedDoc = await getDoc(docRef);
       if (!savedDoc.exists()) {
         throw new Error('Failed to retrieve saved log');
       }
-      
+
       // Convert the Firestore document back to a log object with proper dates
       return convertLogFromFirestore({
         id: docRef.id,
@@ -553,13 +599,13 @@ export const firebaseService = {
       const logData = convertLogToFirestore(log);
       const docRef = doc(db, 'logs', id);
       await updateDoc(docRef, logData);
-      
+
       // Fetch the updated document to ensure we have the correct Firestore timestamps
       const updatedDoc = await getDoc(docRef);
       if (!updatedDoc.exists()) {
         throw new Error('Failed to retrieve updated log');
       }
-      
+
       // Convert the Firestore document back to a log object with proper dates
       return convertLogFromFirestore({
         id,
@@ -576,33 +622,33 @@ export const firebaseService = {
     try {
       const logRef = doc(db, 'logs', logId);
       const logDoc = await getDoc(logRef);
-      
+
       if (!logDoc.exists()) {
         throw new Error('Log not found');
       }
-      
+
       const logData = logDoc.data();
       const comments = logData.comments || [];
-      
+
       // Add timestamp to comment using regular Date
       const newComment = {
         ...comment,
         createdAt: new Date().toISOString()
       };
-      
+
       // Update the log with the new comment
       await updateDoc(logRef, {
         comments: [...comments, newComment],
         updatedAt: serverTimestamp()
       });
-      
+
       return this.getLogById(logId);
     } catch (error) {
       console.error('Error adding comment:', error);
       throw error;
     }
   },
-  
+
   // Notification operations
   async getNotifications(userId: string) {
     try {
@@ -623,7 +669,7 @@ export const firebaseService = {
       throw error;
     }
   },
-  
+
   async createNotification(notificationData: any) {
     try {
       const notificationsRef = collection(db, 'notifications');
@@ -642,7 +688,7 @@ export const firebaseService = {
       throw error;
     }
   },
-  
+
   async markNotificationAsRead(notificationId: string) {
     try {
       const notificationRef = doc(db, 'notifications', notificationId);
@@ -653,7 +699,7 @@ export const firebaseService = {
       throw error;
     }
   },
-  
+
   async markAllNotificationsAsRead(userId: string) {
     try {
       const notificationsQuery = query(
@@ -661,14 +707,14 @@ export const firebaseService = {
         where('userId', '==', userId),
         where('read', '==', false)
       );
-      
+
       const querySnapshot = await getDocs(notificationsQuery);
-      const updatePromises = querySnapshot.docs.map(doc => 
+      const updatePromises = querySnapshot.docs.map(doc =>
         updateDoc(doc.ref, { read: true })
       );
-      
+
       await Promise.all(updatePromises);
-      
+
       return this.getNotifications(userId);
     } catch (error) {
       console.error('Error marking all notifications as read:', error);
@@ -687,14 +733,14 @@ export const firebaseService = {
       throw error;
     }
   },
-  
+
   async deleteAllLogs() {
     try {
       const logsSnapshot = await getDocs(collection(db, 'logs'));
-      const deletePromises = logsSnapshot.docs.map(doc => 
+      const deletePromises = logsSnapshot.docs.map(doc =>
         deleteDoc(doc.ref)
       );
-      
+
       await Promise.all(deletePromises);
       return true;
     } catch (error) {
@@ -705,12 +751,12 @@ export const firebaseService = {
 
   async deleteTeam(teamId: string) {
     try {
-        const teamRef = doc(db, 'teams', teamId);
-        await deleteDoc(teamRef);
-        return true;
+      const teamRef = doc(db, 'teams', teamId);
+      await deleteDoc(teamRef);
+      return true;
     } catch (error) {
-        console.error('Error deleting team:', error);
-        throw error;
+      console.error('Error deleting team:', error);
+      throw error;
     }
   },
 
@@ -755,10 +801,10 @@ export const firebaseService = {
 
         const userDoc = await transaction.get(userRef);
         if (userDoc.exists()) {
-             const userTeams = userDoc.data().teamIds || [];
-             transaction.update(userRef, {
-                 teamIds: userTeams.filter((id: string) => id !== teamId)
-             });
+          const userTeams = userDoc.data().teamIds || [];
+          transaction.update(userRef, {
+            teamIds: userTeams.filter((id: string) => id !== teamId)
+          });
         }
       });
     } catch (error) {
@@ -766,4 +812,4 @@ export const firebaseService = {
       throw error;
     }
   }
-}; 
+};

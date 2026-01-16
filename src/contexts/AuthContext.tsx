@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../config/firebase';
 import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
 
 console.log('AuthContext loaded');
@@ -32,6 +32,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [lastError, setLastError] = useState<string | null>(null);
   const isSigningUp = React.useRef(false);
 
+  // Helper to sync approved team requests (Lazy Join)
+  const syncApprovedTeams = async (uid: string, email: string, currentTeamIds: string[]) => {
+    try {
+      if (!email) return currentTeamIds;
+      console.log('DEBUG: Syncing approved teams for', email);
+
+      const q = query(
+        collection(db, 'invitations'),
+        where('invitedEmail', '==', email),
+        where('status', '==', 'approved')
+      );
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) return currentTeamIds;
+
+      const newTeamIds: string[] = [];
+      const inviteIdsToDelete: string[] = [];
+
+      snapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.teamId && !currentTeamIds.includes(data.teamId)) {
+          newTeamIds.push(data.teamId);
+        }
+        inviteIdsToDelete.push(doc.id);
+      });
+
+      if (newTeamIds.length > 0) {
+        console.log('DEBUG: Found new approved teams:', newTeamIds);
+        const userRef = doc(db, 'users', uid);
+        await updateDoc(userRef, {
+          teamIds: arrayUnion(...newTeamIds)
+        });
+
+        // Return updated list
+        return [...currentTeamIds, ...newTeamIds];
+      }
+
+      // Cleanup consumed invitations
+      if (inviteIdsToDelete.length > 0) {
+        await Promise.all(inviteIdsToDelete.map(id => deleteDoc(doc(db, 'invitations', id))));
+      }
+
+      return currentTeamIds;
+    } catch (err) {
+      console.error('Error syncing approved teams:', err);
+      return currentTeamIds;
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       console.log('DEBUG: Auth State Changed:', user ? user.uid : 'No User');
@@ -49,44 +98,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (userDoc.exists()) {
             console.log('DEBUG: User profile found');
             const userData = userDoc.data();
-            
+
             // SUPER ADMIN ENFORCEMENT
             let finalRole = userData.role as UserRole;
             if (user.email === 'nandanpatilm15@gmail.com' && finalRole !== 'admin') {
-                console.log('DEBUG: Enforcing Super Admin Role for Creator');
-                finalRole = 'admin';
-                // Update Firestore to reflect this permanently
-                const { updateDoc } = await import('firebase/firestore');
-                await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
+              console.log('DEBUG: Enforcing Super Admin Role for Creator');
+              finalRole = 'admin';
+              // Update Firestore to reflect this permanently
+              const { updateDoc } = await import('firebase/firestore');
+              await updateDoc(doc(db, 'users', user.uid), { role: 'admin' });
             }
+
+            // Sync Approved Teams (Lazy Join Check)
+            const updatedTeamIds = await syncApprovedTeams(
+              user.uid,
+              userData.email || user.email || '',
+              userData.teamIds || []
+            );
 
             setCurrentUser({
               uid: user.uid,
               name: userData.name || '',
               ...userData,
+              teamIds: updatedTeamIds,
               role: finalRole // Ensure override
             } as User);
           } else {
             console.warn('DEBUG: User document NOT found for', user.uid, '- Auto-creating basic profile');
-            
+
             // Auto-create a basic user document for missing profiles
             const isSuperAdmin = user.email === 'nandanpatilm15@gmail.com';
             const basicUserData: User = {
               id: user.uid,
               uid: user.uid,
-              name: user.displayName || 'User', 
+              name: user.displayName || 'User',
               email: user.email || '',
               role: (isSuperAdmin ? 'admin' : 'member') as UserRole, // Default 'member'
               teamIds: [],
               createdAt: new Date().toISOString(),
               profileIncomplete: !isSuperAdmin // Admins might not need this flow
             };
-            
+
             // Create the user document in Firestore
             const { setDoc } = await import('firebase/firestore');
             await setDoc(doc(db, 'users', user.uid), basicUserData);
             console.log('DEBUG: Auto-created user document for', user.uid);
-            
+
             // Set the current user with the basic profile
             setCurrentUser(basicUserData);
             setLastError('Profile auto-created. Please complete your profile.');
@@ -114,11 +171,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          // Sync Approved Teams
+          const updatedTeamIds = await syncApprovedTeams(
+            auth.currentUser.uid,
+            userData.email || auth.currentUser.email || '',
+            userData.teamIds || []
+          );
+
           setCurrentUser({
             uid: auth.currentUser.uid,
             name: userData.name || '',
             role: userData.role as UserRole,
-            ...userData
+            ...userData,
+            teamIds: updatedTeamIds
           } as User);
         }
       } catch (error) {
@@ -137,75 +202,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const uid = userCredential.user.uid;
 
-      // Handle Team Creation if needed
-      let teamIdToJoin: string | null = null;
-      let newTeamId: string | null = null;
-      let invitationIdToAccept: string | null = null;
-
-      const { firebaseService } = await import('../services');
-
-      if (teamData?.createTeam) {
-          const team = await firebaseService.createTeam(teamData.teamName, uid);
-          newTeamId = team.id;
-      } else if (['member', 'guide'].includes(userData.role)) {
-          // 1. Check for email invitations
-          console.log('DEBUG: Checking invitations for', email);
-          const invitations = await firebaseService.getInvitationsByEmail(email);
-          if (invitations.length > 0) {
-              const invitation: any = invitations[0];
-              console.log('DEBUG: Found invitation', invitation.id, 'for team', invitation.teamId);
-              teamIdToJoin = invitation.teamId;
-              invitationIdToAccept = invitation.id;
-          } 
-          // 2. If no invitation, check referral code
-          else if (teamData?.joinCode) {
-              const type = userData.role === 'guide' ? 'guide' : 'referral';
-              const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
-              if (team) teamIdToJoin = team.id;
-          } else {
-              // MANDATORY CHECK: If no invitation and no code, BLOCK SIGNUP
-              console.error('DEBUG: No referral code provided for signup');
-              // Clean up auth user since we are rejecting the signup
-              const { deleteUser } = await import('firebase/auth');
-              await deleteUser(userCredential.user);
-              throw new Error('Referral Code is MANDATORY. You must join a team to sign up.');
-          }
-      }
-
-      const teamIds = [];
-      if (newTeamId) teamIds.push(newTeamId);
-      if (teamIdToJoin) teamIds.push(teamIdToJoin);
-
+      // 1. Create User Document FIRST (with empty teams)
       const newUser: User = {
-          id: uid,
-          uid,
-          name: userData.name,
-          email,
-          role: userData.role,
-          teamIds,
-          createdAt: new Date().toISOString()
+        id: uid,
+        uid,
+        name: userData.name,
+        email,
+        role: userData.role,
+        teamIds: [], // Will be updated by createTeam/joinTeam
+        createdAt: new Date().toISOString()
       };
 
-      // Create User Document
       console.log('DEBUG: Writing user document to Firestore');
       const { setDoc, doc } = await import('firebase/firestore');
       await setDoc(doc(db, 'users', uid), newUser);
       console.log('DEBUG: User document written successfully');
 
-      // Join Team Logic
-      if (invitationIdToAccept && teamIdToJoin) {
-          console.log('DEBUG: Accepting invitation', invitationIdToAccept);
-          await firebaseService.acceptInvitation(invitationIdToAccept, uid);
-      } else if (teamIdToJoin) {
-          console.log('DEBUG: Joining team via code', teamIdToJoin);
-          await firebaseService.joinTeamById(teamIdToJoin, uid, userData.role);
+      // 2. Handle Team Creation / Joining
+      let teamIdToJoin: string | null = null;
+      let invitationIdToAccept: string | null = null;
+
+      const { firebaseService } = await import('../services');
+
+      if (teamData?.createTeam) {
+        // This will now successfully update the user doc we just created
+        await firebaseService.createTeam(teamData.teamName, uid);
+        // Auto-refresh handled by final refreshUser call
+      } else if (['member', 'guide'].includes(userData.role)) {
+        // ... (Invitation logic same as before)
+
+        // Check invitations
+        console.log('DEBUG: Checking invitations for', email);
+        const invitations = await firebaseService.getInvitationsByEmail(email);
+        if (invitations.length > 0) {
+          const invitation: any = invitations[0];
+          console.log('DEBUG: Found invitation', invitation.id, 'for team', invitation.teamId);
+          teamIdToJoin = invitation.teamId;
+          invitationIdToAccept = invitation.id;
+        }
+        // Check code
+        else if (teamData?.joinCode) {
+          const type = userData.role === 'guide' ? 'guide' : 'referral';
+          const team = await firebaseService.getTeamByCode(teamData.joinCode, type);
+          if (team) teamIdToJoin = team.id;
+        } else {
+          // MANDATORY CHECK
+          console.error('DEBUG: No referral code provided for signup');
+          const { deleteUser } = await import('firebase/auth');
+          await deleteUser(userCredential.user);
+          // Also delete the user doc we just made to clean up
+          const { deleteDoc } = await import('firebase/firestore');
+          await deleteDoc(doc(db, 'users', uid));
+          throw new Error('Referral Code is MANDATORY. You must join a team to sign up.');
+        }
       }
 
+      // Join Team Logic
+      if (invitationIdToAccept && teamIdToJoin) {
+        console.log('DEBUG: Accepting invitation', invitationIdToAccept);
+        await firebaseService.acceptInvitation(invitationIdToAccept, uid);
+      } else if (teamIdToJoin) {
+        console.log('DEBUG: Joining team via code', teamIdToJoin);
+        await firebaseService.joinTeamByCode(
+          teamData?.joinCode || '', // We need the code if joining by code
+          uid,
+          email,
+          userData.name
+        );
+      }
 
-      // Manually set state to avoid race conditions
-      console.log('DEBUG: Manually setting current user');
-      setCurrentUser(newUser);
-      
+      // 3. Final State Update
+      // We call refreshUser to ensure we get the latest state including any team updates
+      await refreshUser();
+
     } catch (error) {
       console.error('Signup error:', error);
       throw error;

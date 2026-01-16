@@ -31,7 +31,7 @@ const statusConfig = {
 
 export function Dashboard() {
     const navigate = useNavigate();
-    const { currentUser } = useAuth();
+    const { currentUser, refreshUser } = useAuth();
     const [logs, setLogs] = useState<any[]>([]);
     const [teams, setTeams] = useState<any[]>([]);
     const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -49,11 +49,25 @@ export function Dashboard() {
         if (!joinCode.trim() || !currentUser?.uid) return;
         setJoining(true);
         try {
-            const result = await firebaseService.joinTeamByCode(joinCode.trim(), currentUser.uid);
-            notifications.show({ title: 'Welcome!', message: `You have joined ${result.teamName}`, color: 'green' });
+            const result = await firebaseService.joinTeamByCode(
+                joinCode.trim(),
+                currentUser.uid,
+                currentUser.email || '',
+                currentUser.name || 'Unknown'
+            );
+
+            if (result.status === 'pending_approval') {
+                notifications.show({
+                    title: 'Request Sent',
+                    message: `Your request to join ${result.teamName} has been sent for approval.`,
+                    color: 'blue'
+                });
+            } else {
+                notifications.show({ title: 'Welcome!', message: `You have joined ${result.teamName}`, color: 'green' });
+                // Refresh user to get new teamIds
+                await refreshUser();
+            }
             setJoinCode('');
-            // Refresh to show new team
-            window.location.reload(); 
         } catch (error: any) {
             notifications.show({ title: 'Error', message: error.message, color: 'red' });
         } finally {
@@ -100,11 +114,11 @@ export function Dashboard() {
                                 ].filter(Boolean);
 
                                 const allUsers = await firebaseService.getUsersByIds([...new Set(allUserIds)]);
-                                
+
                                 const leader = allUsers.find(u => u.id === team.leaderId);
                                 const guides = allUsers.filter(u => team.guideIds?.includes(u.id));
                                 const members = allUsers.filter(u => team.memberIds?.includes(u.id));
-                                
+
                                 setTeamRoster({ leader, guides, members });
                             }
                         } else {
@@ -220,7 +234,7 @@ export function Dashboard() {
     // Filter logs based on selection for Non-Admins with multiple teams
     // For MEMBERS: Show ONLY their own logs by default to keep stats personal
     const isMember = currentUser?.role === 'member';
-    
+
     const personalLogs = logs.filter(l => l.createdBy === currentUser?.uid);
     const displayedLogs = (currentUser?.role === 'admin' || !isMember)
         ? ((currentUser?.role !== 'admin' && selectedTeam) ? logs.filter(l => l.teamId === selectedTeam) : logs)
@@ -351,7 +365,7 @@ export function Dashboard() {
                                 {currentUser?.role === 'admin'
                                     ? 'Manage all engineering teams from one place.'
                                     : teams.length > 0
-                                        ? `Team: ${selectedTeam ? teams.find(t=>t.id === selectedTeam)?.name : teams[0].name}`
+                                        ? `Team: ${selectedTeam ? teams.find(t => t.id === selectedTeam)?.name : teams[0].name}`
                                         : 'Track progress and manage weekly reports.'}
                             </Text>
                         </Box>
@@ -363,7 +377,7 @@ export function Dashboard() {
                                 <Menu shadow="md" width={200}>
                                     <Menu.Target>
                                         <Button variant="default" rightSection={<IconArrowRight size={14} style={{ transform: 'rotate(90deg)' }} />}>
-                                            {selectedTeam ? teams.find(t=>t.id === selectedTeam)?.name : teams[0].name}
+                                            {selectedTeam ? teams.find(t => t.id === selectedTeam)?.name : teams[0].name}
                                         </Button>
                                     </Menu.Target>
                                     <Menu.Dropdown>
@@ -393,35 +407,44 @@ export function Dashboard() {
                     {currentUser?.role !== 'admin' && teams.length > 0 && <TeamSquad teamRoster={teamRoster} />}
 
                     {/* No Team Alert */}
-                    {/* No Team Alert & Join Section */}
-                    {currentUser?.role !== 'admin' && teams.length === 0 && !loading && (
-                         <Paper p="xl" withBorder radius="md" bg="orange.0">
-                             <Stack gap="sm">
+                    {/* Join Team Section - Always visible for Admin/Guide, or if user has no team */}
+                    {/* RULES: 
+                        - Admin: Never sees this (they manage all)
+                        - Guide: ALWAYS sees this (to join multiple teams)
+                        - Member/Lead: Sees this ONLY if teams.length === 0
+                    */}
+                    {(currentUser?.role === 'guide' || (currentUser?.role !== 'admin' && teams.length === 0)) && (
+                        <Paper p="xl" withBorder radius="md" bg={teams.length > 0 ? "white" : "orange.0"}>
+                            <Stack gap="sm">
                                 <Group>
-                                    <ThemeIcon color="orange" variant="light" size="lg"><IconUsersGroup size={20} /></ThemeIcon>
-                                    <Title order={4} c="orange.9">No Team Assigned</Title>
+                                    <ThemeIcon color={teams.length > 0 ? "indigo" : "orange"} variant="light" size="lg"><IconUsersGroup size={20} /></ThemeIcon>
+                                    <Title order={4} c={teams.length > 0 ? "indigo.9" : "orange.9"}>
+                                        {teams.length > 0 ? "Join Another Team" : "No Team Assigned"}
+                                    </Title>
                                 </Group>
                                 <Text size="sm" c="dimmed">
-                                    You are not currently assigned to any team. Ask your Team Lead or Guide for their unique <b>Referral Code</b> to join immediately.
+                                    {teams.length > 0
+                                        ? "As a Faculty Guide, you can join multiple teams. Enter a new Team/Guide Code below."
+                                        : "You are not currently assigned to any team. Ask your Team Lead or Guide for their unique Referral Code to join immediately."}
                                 </Text>
                                 <Group align="flex-end" gap="sm">
-                                    <TextInput 
-                                        placeholder="Enter Team/Guide Code" 
-                                        label="Referral Code" 
-                                        value={joinCode} 
+                                    <TextInput
+                                        placeholder="Enter Team/Guide Code"
+                                        label="Referral Code"
+                                        value={joinCode}
                                         onChange={(e) => setJoinCode(e.target.value)}
                                         style={{ flex: 1 }}
                                     />
-                                    <Button 
-                                        loading={joining} 
-                                        onClick={handleJoinTeam} 
-                                        color="orange"
+                                    <Button
+                                        loading={joining}
+                                        onClick={handleJoinTeam}
+                                        color={teams.length > 0 ? "indigo" : "orange"}
                                     >
                                         Join Team
                                     </Button>
                                 </Group>
-                             </Stack>
-                         </Paper>
+                            </Stack>
+                        </Paper>
                     )}
 
                     {/* Stats Row (Only if logs exist or user is standard) */}
@@ -476,7 +499,7 @@ function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], 
                 </Group>
                 <Badge variant="light" color="gray">{teamRoster.members.length + (teamRoster.leader ? 1 : 0)} Members</Badge>
             </Group>
-  
+
             <SimpleGrid cols={{ base: 1, md: 3 }} spacing="lg">
                 {/* Leader Column */}
                 <Stack gap="sm">
@@ -491,7 +514,7 @@ function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], 
                         </Group>
                     ) : <Text size="sm" c="dimmed" fs="italic">No leader assigned</Text>}
                 </Stack>
-  
+
                 {/* Guides Column */}
                 <Stack gap="sm">
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">Guides</Text>
@@ -509,12 +532,12 @@ function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], 
                         </Stack>
                     ) : <Text size="sm" c="dimmed" fs="italic">No guides yet</Text>}
                 </Stack>
-  
+
                 {/* Members Column */}
                 <Stack gap="sm">
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase">Members</Text>
                     {teamRoster.members.length > 0 ? (
-                            <Stack gap="xs">
+                        <Stack gap="xs">
                             {teamRoster.members.map(m => (
                                 <Group key={m.id}>
                                     <Avatar size="md" radius="xl" color="blue" src={null}>{m.name[0]}</Avatar>

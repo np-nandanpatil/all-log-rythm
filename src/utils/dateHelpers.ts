@@ -1,85 +1,110 @@
-import { format, parse, isValid, startOfDay } from 'date-fns';
+import { format, parse, isValid, startOfDay, addMinutes } from 'date-fns';
 import { Timestamp } from 'firebase/firestore';
 
 // Standard date format for display
 export const DISPLAY_DATE_FORMAT = 'MMM d, yyyy';
 // Standard date format for storage
-export const STORAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx";
+export const STORAGE_DATE_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"; // Strictly UTC
 // Standard date format for input
 export const INPUT_DATE_FORMAT = 'yyyy-MM-dd';
 
 /**
- * Formats a date for display in the UI
+ * Formats a date for display in the UI (e.g. "Feb 5, 2024")
+ * CRITICAL: This treats the date as "floating" or checks the UTC day.
  */
 export const formatDateForDisplay = (date: Date | string | null): string => {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return format(dateObj, DISPLAY_DATE_FORMAT);
+
+  // If the date is valid, format it. 
+  // NOTE: date-fns format() uses local time by default. 
+  // If we stored "2024-02-05T00:00:00.000Z", in NY (UTC-5) this is "2024-02-04 19:00".
+  // We want to display "Feb 5".
+  // So we must access the UTC components or shift it.
+
+  const utcYear = dateObj.getUTCFullYear();
+  const utcMonth = dateObj.getUTCMonth();
+  const utcDay = dateObj.getUTCDate();
+
+  // Create a local date for formatting that LOOKS like the UTC date
+  const displayDate = new Date(utcYear, utcMonth, utcDay);
+
+  return format(displayDate, DISPLAY_DATE_FORMAT);
 };
 
 /**
- * Formats a date for storage in Firebase
+ * Formats a date for storage in Firebase (ISO String at UTC Midnight)
+ * This ensures that no matter where the user is, "Feb 5th" is stored as "2024-02-05T00:00:00.000Z"
  */
 export const formatDateForStorage = (date: Date | string | null): string => {
   if (!date) return '';
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  
-  // Create a new date at midnight UTC
-  const utcDate = new Date(Date.UTC(
-    dateObj.getFullYear(),
-    dateObj.getMonth(),
-    dateObj.getDate(),
-    0, 0, 0, 0
-  ));
-  
+
+  if (!isValid(dateObj)) return '';
+
+  // We assume the user selected "Feb 5" in their local calendar.
+  // We want to store this as "Feb 5 UTC".
+  // The input 'date' from mantine might be "2024-02-05T00:00:00.000 LocalTime"
+
+  const year = dateObj.getFullYear();
+  const month = dateObj.getMonth();
+  const day = dateObj.getDate();
+
+  const utcDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+
   return utcDate.toISOString();
 };
 
 /**
  * Parses a date string into a Date object
+ * Used when reading from DB/Input
  */
 export const parseDateString = (dateStr: string | Date | null): Date | null => {
   if (!dateStr) return null;
   if (dateStr instanceof Date) return dateStr;
-  
-  // Try parsing with different formats
-  const formats = [
-    INPUT_DATE_FORMAT,
-    DISPLAY_DATE_FORMAT,
-    STORAGE_DATE_FORMAT,
-    'yyyy-MM-dd',
-    'MM/dd/yyyy'
-  ];
 
-  for (const formatStr of formats) {
-    const parsedDate = parse(dateStr, formatStr, new Date());
-    if (isValid(parsedDate)) {
-      return parsedDate;
-    }
-  }
+  // If it ends in Z, it is likely our stored UTC date.
+  // We want to convert "2024-02-05T00:00:00.000Z" -> Local Date Object for "Feb 5 00:00"
+  // so that the Calendar picker shows "Feb 5".
 
-  // If no format matches, try direct parsing
-  const directDate = new Date(dateStr);
-  return isValid(directDate) ? directDate : null;
+  const d = new Date(dateStr);
+  if (!isValid(d)) return null;
+
+  // We want to treat the UTC components as Local components for the UI
+  const utcYear = d.getUTCFullYear();
+  const utcMonth = d.getUTCMonth();
+  const utcDay = d.getUTCDate();
+
+  return new Date(utcYear, utcMonth, utcDay);
 };
 
 /**
  * Validates if a date is within a range
  */
 export const isDateInRange = (date: Date | string, startDate: Date | string, endDate: Date | string): boolean => {
-  const start = startOfDay(typeof startDate === 'string' ? new Date(startDate) : startDate);
-  const end = startOfDay(typeof endDate === 'string' ? new Date(endDate) : endDate);
-  const check = startOfDay(typeof date === 'string' ? new Date(date) : date);
-  return check >= start && check <= end;
+  // Convert everything to timestamps for easy comparison
+  const d = typeof date === 'string' ? new Date(date).getTime() : date.getTime();
+  const s = typeof startDate === 'string' ? new Date(startDate).getTime() : startDate.getTime();
+  const e = typeof endDate === 'string' ? new Date(endDate).getTime() : endDate.getTime();
+
+  return d >= s && d <= e;
 };
 
 /**
- * Converts a Firestore timestamp to a Date object
+ * Converts a Firestore timestamp to a Date object, preserving the "Day" logic
  */
 export const firestoreTimestampToDate = (timestamp: any): Date | null => {
   if (!timestamp) return null;
-  if (timestamp.toDate) return timestamp.toDate();
-  return new Date(timestamp);
+
+  let date: Date;
+  if (timestamp.toDate) {
+    date = timestamp.toDate();
+  } else {
+    date = new Date(timestamp);
+  }
+
+  // Reuse our parse logic to ensure we get a Local Date representing the stored UTC Day
+  return parseDateString(date.toISOString());
 };
 
 /**
@@ -91,29 +116,20 @@ export const formatDateRange = (startDate: Date | string | null, endDate: Date |
 };
 
 /**
- * Converts a date to a Firestore Timestamp
+ * Converts a date to a Firestore Timestamp (UTC Midnight)
  */
 export const toFirestoreTimestamp = (date: any): Timestamp | null => {
   if (!date) return null;
-  
-  // If it's already a Timestamp, return it
+
   if (date && typeof date === 'object' && 'seconds' in date && 'nanoseconds' in date) {
     return date;
   }
-  
-  // Create a Date object from the input
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  if (!isValid(dateObj)) return null;
-  
-  // Create a UTC midnight date
-  const utcDate = new Date(Date.UTC(
-    dateObj.getFullYear(),
-    dateObj.getMonth(),
-    dateObj.getDate(),
-    0, 0, 0, 0
-  ));
-  
-  return Timestamp.fromDate(utcDate);
+
+  // Format for storage ensures it is a UTC string
+  const storageStr = formatDateForStorage(date);
+  if (!storageStr) return null;
+
+  return Timestamp.fromDate(new Date(storageStr));
 };
 
 /**
@@ -121,30 +137,24 @@ export const toFirestoreTimestamp = (date: any): Timestamp | null => {
  */
 export const fromFirestoreTimestamp = (timestamp: any): string => {
   if (!timestamp) return '';
-  const date = firestoreTimestampToDate(timestamp);
-  return date ? date.toISOString() : '';
+  // If it is a timestamp, .toDate() converts to JS Date (Local/UTC aware)
+  // We want the raw ISO string of that instant
+  if (timestamp.toDate) {
+    return timestamp.toDate().toISOString();
+  }
+  return new Date(timestamp).toISOString();
 };
 
 /**
- * Converts a value to an ISO string (handles Firestore timestamps and dates)
+ * Converts a value to an ISO string
  */
 export const toISOString = (value: any): string => {
   if (!value) return '';
-  
-  // If it's a Timestamp, convert to Date first
-  if (value && typeof value === 'object' && 'seconds' in value && 'nanoseconds' in value) {
+  if (value && typeof value === 'object' && 'seconds' in value) {
     return fromFirestoreTimestamp(value);
   }
-  
-  // If it's a Date
   if (value instanceof Date) {
     return value.toISOString();
   }
-  
-  // If it's a string, assume it's already in proper format
-  if (typeof value === 'string') {
-    return value;
-  }
-  
-  return '';
+  return String(value);
 }; 

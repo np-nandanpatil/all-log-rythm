@@ -12,11 +12,9 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    // Helper function to get user role
+    // Helper function to fetch user role
+    // CAUTION: This costs one read operation per rule check. 
     function getUserRole() {
-      // Note: This requires the user document to attempt a read. 
-      // Ideally custom claims should be used for roles in production for better performance and security.
-      // For now, we assume the client code handles role verification, but we enforce ownership.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
@@ -26,6 +24,8 @@ service cloud.firestore {
     }
 
     // Users collection
+    // Read: Authenticated users can read profiles (needed for team lists)
+    // Write: ONLY the user themselves or an Admin
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId) || isAdmin(); 
@@ -34,9 +34,18 @@ service cloud.firestore {
     // Logs collection
     match /logs/{logId} {
       allow read: if isAuthenticated();
+      // Create: Authenticated users can create logs
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if (isAuthenticated() && (true)) || isAdmin();
+      // Update: Only the creator or Admin can update
+      allow update: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid || 
+        isAdmin()
+      );
+      // Delete: CRITICAL FIX - Only creator or Admin can delete
+      allow delete: if isAuthenticated() && (
+        resource.data.createdBy == request.auth.uid || 
+        isAdmin()
+      );
     }
 
     // Teams collection
@@ -50,6 +59,8 @@ service cloud.firestore {
         resource.data.leaderId == request.auth.uid || 
         isAdmin() ||
         (
+             // Allow updating array fields (joining members) check would be complex here, 
+             // relying on application logic for now but ensuring critical fields don't change without permission
              request.resource.data.leaderId == resource.data.leaderId && 
              request.resource.data.name == resource.data.name
         )

@@ -14,6 +14,20 @@ import '@mantine/dates/styles.css';
 import { theme } from './theme';
 import { AnimatePresence } from 'framer-motion';
 
+import { useAuth } from './contexts/AuthContext';
+
+function RedirectIfAuthenticated({ children }: { children: React.ReactNode }) {
+  const { currentUser, loading } = useAuth();
+
+  if (loading) return null; // Or a loading spinner
+
+  if (currentUser) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function AppContent() {
   const location = useLocation();
 
@@ -21,7 +35,11 @@ function AppContent() {
     <Box style={{ minHeight: '100vh', height: '100%' }}>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={
+            <RedirectIfAuthenticated>
+              <LandingPage />
+            </RedirectIfAuthenticated>
+          } />
           <Route path="/login" element={<Navigate to="/" replace />} />
           <Route
             path="/dashboard"
