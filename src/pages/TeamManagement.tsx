@@ -365,10 +365,10 @@ export function TeamManagement() {
                       <Group key={req.id} justify="space-between" p="sm" bg="white" style={{ borderRadius: 8, border: '1px solid var(--mantine-color-blue-2)' }}>
                         <div>
                           <Group gap="xs">
-                            <Text fw={600} size="sm">{req.invitedByName}</Text>
+                            <Text fw={600} size="sm" lineClamp={1}>{req.invitedByName}</Text>
                             <Badge size="xs" color={req.role === 'guide' ? 'purple' : 'gray'}>{req.role}</Badge>
                           </Group>
-                          <Text size="xs" c="dimmed">{req.invitedEmail}</Text>
+                          <Text size="xs" c="dimmed" lineClamp={1}>{req.invitedEmail}</Text>
                         </div>
                         <Group gap="xs">
                           <Button size="xs" color="green" variant="light" leftSection={<IconCheck size={14} />} onClick={() => handleApproveRequest(req)}>Approve</Button>

@@ -74,6 +74,9 @@ export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const { currentUser, signOut } = useAuth();
 
+  // Mobile Breakpoint Check
+  const isMobile = window.innerWidth < 768; // Simple check or use useMediaQuery if available
+
   const handleLogout = async () => {
     try {
       await signOut();
@@ -87,7 +90,7 @@ export function Layout({ children }: LayoutProps) {
     <AppShell
       padding="md"
       navbar={{
-        width: desktopOpened ? 300 : 80,
+        width: { base: 300, sm: desktopOpened ? 300 : 80 },
         breakpoint: 'sm',
         collapsed: { mobile: !opened },
       }}
@@ -103,7 +106,7 @@ export function Layout({ children }: LayoutProps) {
       <AppShell.Navbar p="md" style={{ borderRight: '1px solid var(--mantine-color-gray-3)' }}>
         <Stack gap="lg" align="flex-start" h="100%">
           {/* Brand Section */}
-          <Group w="100%" px={desktopOpened ? "xs" : 0} mb="md" mt="xs" justify={desktopOpened ? "flex-start" : "center"}>
+          <Group w="100%" px={(desktopOpened || isMobile) ? "xs" : 0} mb="md" mt="xs" justify={(desktopOpened || isMobile) ? "flex-start" : "center"}>
             <Avatar
               src={null}
               alt="Logo"
@@ -114,7 +117,7 @@ export function Layout({ children }: LayoutProps) {
             >
               <IconNotebook size={20} />
             </Avatar>
-            {desktopOpened && (
+            {(desktopOpened || isMobile) && (
               <Stack gap={0}>
                 <Text size="lg" fw={800} style={{ letterSpacing: '-0.5px' }}>Log Rythm</Text>
                 <Text size="xs" c="dimmed" fw={500}>Internship Management</Text>
@@ -129,7 +132,7 @@ export function Layout({ children }: LayoutProps) {
               label="Dashboard"
               active={location.pathname === '/dashboard'}
               onClick={() => navigate('/dashboard')}
-              collapsed={!desktopOpened}
+              collapsed={!desktopOpened && !isMobile}
             />
 
             {/* Team Management - Only for Team Leaders and Admins */}
@@ -139,7 +142,7 @@ export function Layout({ children }: LayoutProps) {
                 label="Team Management"
                 active={location.pathname === '/team'}
                 onClick={() => navigate('/team')}
-                collapsed={!desktopOpened}
+                collapsed={!desktopOpened && !isMobile}
               />
             )}
 
@@ -149,12 +152,12 @@ export function Layout({ children }: LayoutProps) {
                 label="Teams Directory"
                 active={false}
                 onClick={() => navigate('/dashboard')}
-                collapsed={!desktopOpened}
+                collapsed={!desktopOpened && !isMobile}
               />
             )}
           </Stack>
 
-          {/* Collapse Toggle */}
+          {/* Collapse Toggle (Desktop Only) */}
           <UnstyledButton
             onClick={toggleDesktop}
             visibleFrom="sm"
@@ -186,11 +189,11 @@ export function Layout({ children }: LayoutProps) {
                   backgroundColor: theme.colors.gray[0],
                 },
               })}>
-                <Group justify={desktopOpened ? "flex-start" : "center"}>
+                <Group justify={(desktopOpened || isMobile) ? "flex-start" : "center"}>
                   <Avatar src={null} radius="xl" color="indigo" variant="light">
                     {(currentUser?.name || "U")[0]}
                   </Avatar>
-                  {desktopOpened && (
+                  {(desktopOpened || isMobile) && (
                     <Stack gap={0} flex={1}>
                       <Text size="sm" fw={600} lineClamp={1}>
                         {currentUser?.name || "User"}

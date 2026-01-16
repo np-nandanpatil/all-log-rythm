@@ -427,7 +427,7 @@ export function Dashboard() {
                                         ? "As a Faculty Guide, you can join multiple teams. Enter a new Team/Guide Code below."
                                         : "You are not currently assigned to any team. Ask your Team Lead or Guide for their unique Referral Code to join immediately."}
                                 </Text>
-                                <Group align="flex-end" gap="sm">
+                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" verticalSpacing="xs">
                                     <TextInput
                                         placeholder="Enter Team/Guide Code"
                                         label="Referral Code"
@@ -439,10 +439,11 @@ export function Dashboard() {
                                         loading={joining}
                                         onClick={handleJoinTeam}
                                         color={teams.length > 0 ? "indigo" : "orange"}
+                                        fullWidth
                                     >
                                         Join Team
                                     </Button>
-                                </Group>
+                                </SimpleGrid>
                             </Stack>
                         </Paper>
                     )}
