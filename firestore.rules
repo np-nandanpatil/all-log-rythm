@@ -34,8 +34,8 @@ service cloud.firestore {
     // Logs collection
     match /logs/{logId} {
       allow read: if isAuthenticated();
-      // Create: Authenticated users can create logs
-      allow create: if isAuthenticated();
+      // Create: Authenticated users can create logs ONLY for themselves
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
       // Update: Only the creator or Admin can update
       allow update: if isAuthenticated() && (
         resource.data.createdBy == request.auth.uid || 
@@ -73,9 +73,23 @@ service cloud.firestore {
     // Invitations collection
     match /invitations/{invitationId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAuthenticated() || isAdmin(); 
+      
+      // Create: Any auth user can request to join (create an invitation)
+      allow create: if isAuthenticated() && request.resource.data.invitedBy == request.auth.uid;
+      
+      // Update: ONLY Team Leader or Admin can update (e.g. approve)
+      // This prevents a user from approving their own request.
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leaderId == request.auth.uid
+      );
+      
+      // Delete: Leader (reject), Admin, or the User themselves (cancel request)
+      allow delete: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.invitedBy == request.auth.uid ||
+        get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leaderId == request.auth.uid
+      ); 
     }
   }
 }
