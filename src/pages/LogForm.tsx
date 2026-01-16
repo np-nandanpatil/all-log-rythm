@@ -211,7 +211,7 @@ export function LogForm() {
               <Paper p="xl" radius="lg" withBorder>
                 <Title order={4} mb="lg">Log Details</Title>
                 <DatePickerInput
-                  label="Log Date"
+                  label="Date"
                   placeholder="Pick date"
                   value={logDate}
                   onChange={handleDateChange}

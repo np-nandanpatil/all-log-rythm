@@ -36,15 +36,17 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Create: Authenticated users can create logs ONLY for themselves
       allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
-      // Update: Only the creator or Admin can update
+      // Update: Creator, Admin, Team Lead, Guide
       allow update: if isAuthenticated() && (
         resource.data.createdBy == request.auth.uid || 
-        isAdmin()
+        isAdmin() ||
+        getUserRole() in ['team_lead', 'guide']
       );
-      // Delete: CRITICAL FIX - Only creator or Admin can delete
+      // Delete: Only creator (if draft) or Admin/Lead
       allow delete: if isAuthenticated() && (
-        resource.data.createdBy == request.auth.uid || 
-        isAdmin()
+        (resource.data.createdBy == request.auth.uid && resource.data.status == 'draft') || 
+        isAdmin() ||
+        getUserRole() == 'team_lead'
       );
     }
 

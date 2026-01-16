@@ -258,7 +258,7 @@ export function LogView() {
           <Paper p="xl" radius="lg" withBorder mb="xl">
             <Group justify="space-between" mb="lg">
               <Stack gap={0}>
-                <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Daily Log</Text>
+                <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Daily Log Entry</Text>
                 <Title order={1}>{formatDate(log.startDate)}</Title>
               </Stack>
               <Badge size="xl" radius="md" color={getStatusColor(log.status)}>
