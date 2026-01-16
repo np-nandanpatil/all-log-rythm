@@ -83,7 +83,7 @@ export function ProjectAnalytics({ teamId }: ProjectAnalyticsProps) {
                     {/* Stats */}
                     <Grid.Col span={{ base: 12, md: 4 }}>
                         <Stack gap="xs">
-                            <Paper withBorder p="sm" radius="md" bg="gray.0">
+                            <Paper withBorder p="sm" radius="md" bg="var(--mantine-color-default)">
                                 <Group>
                                     <ThemeIcon variant="white" color="indigo"><IconChartBar size={16} /></ThemeIcon>
                                     <div>
@@ -92,7 +92,7 @@ export function ProjectAnalytics({ teamId }: ProjectAnalyticsProps) {
                                     </div>
                                 </Group>
                             </Paper>
-                            <Paper withBorder p="sm" radius="md" bg="gray.0">
+                            <Paper withBorder p="sm" radius="md" bg="var(--mantine-color-default)">
                                 <Group>
                                     <ThemeIcon variant="white" color="teal"><IconClock size={16} /></ThemeIcon>
                                     <div>

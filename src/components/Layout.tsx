@@ -45,6 +45,7 @@ const NavbarLink = ({
     <Tooltip label={label} position="right" transitionProps={{ duration: 0 }} disabled={!collapsed}>
       <UnstyledButton
         onClick={onClick}
+        className={active ? 'active' : ''}
         style={(theme) => ({
           width: '100%',
           padding: theme.spacing.md,
@@ -52,16 +53,20 @@ const NavbarLink = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'flex-start',
-          backgroundColor: active ? theme.colors.indigo[0] : 'transparent',
-          color: active ? theme.colors.indigo[7] : theme.colors.gray[7],
+          "--nav-bg": active ? "var(--mantine-color-indigo-light)" : "transparent",
+          "--nav-color": active ? "var(--mantine-color-indigo-light-color)" : "var(--mantine-color-text)",
+          "--nav-hover": active ? "var(--mantine-color-indigo-light)" : "var(--mantine-color-default-hover)",
+          backgroundColor: "var(--nav-bg)",
+          color: "var(--nav-color)",
           marginBottom: theme.spacing.xs,
+          transition: 'background-color 0.2s, color 0.2s',
           '&:hover': {
-            backgroundColor: active ? theme.colors.indigo[0] : theme.colors.gray[0],
+            backgroundColor: "var(--nav-hover)",
           }
         })}
       >
         <Icon style={{ width: rem(20), height: rem(20) }} stroke={1.5} />
-        {!collapsed && <Text ml="md" size="sm" fw={500}>{label}</Text>}
+        {!collapsed && <Text ml="md" size="sm" fw={500} c="inherit">{label}</Text>}
       </UnstyledButton>
     </Tooltip>
   );
@@ -103,7 +108,7 @@ export function Layout({ children }: LayoutProps) {
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md" style={{ borderRight: '1px solid var(--mantine-color-gray-3)' }}>
+      <AppShell.Navbar p="md" withBorder>
         <Stack gap="lg" align="flex-start" h="100%">
           {/* Brand Section */}
           <Group w="100%" px={(desktopOpened || isMobile) ? "xs" : 0} mb="md" mt="xs" justify={(desktopOpened || isMobile) ? "flex-start" : "center"}>
@@ -168,10 +173,10 @@ export function Layout({ children }: LayoutProps) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: theme.colors.gray[5],
+              color: 'var(--mantine-color-dimmed)',
               '&:hover': {
-                backgroundColor: theme.colors.gray[0],
-                color: theme.colors.gray[7],
+                backgroundColor: 'var(--mantine-color-default-hover)',
+                color: 'var(--mantine-color-text)',
               }
             })}
           >
@@ -183,10 +188,10 @@ export function Layout({ children }: LayoutProps) {
             <Menu.Target>
               <UnstyledButton w="100%" style={(theme) => ({
                 padding: theme.spacing.md,
-                color: theme.colors.dark[8],
+                color: 'var(--mantine-color-text)',
                 borderRadius: theme.radius.sm,
                 '&:hover': {
-                  backgroundColor: theme.colors.gray[0],
+                  backgroundColor: 'var(--mantine-color-default-hover)',
                 },
               })}>
                 <Group justify={(desktopOpened || isMobile) ? "flex-start" : "center"}>
@@ -228,7 +233,7 @@ export function Layout({ children }: LayoutProps) {
         </Stack>
       </AppShell.Navbar>
 
-      <AppShell.Main bg="gray.0">
+      <AppShell.Main>
         {children}
       </AppShell.Main>
     </AppShell>

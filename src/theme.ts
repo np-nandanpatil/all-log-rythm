@@ -25,7 +25,6 @@ export const theme = createTheme({
       },
       styles: (theme) => ({
         root: {
-          backgroundColor: theme.white,
           transition: 'transform 0.2s ease, box-shadow 0.2s ease',
         },
       }),
@@ -41,10 +40,10 @@ export const theme = createTheme({
       },
     },
     Badge: {
-        defaultProps: {
-            fw: 600,
-            radius: 'sm',
-        }
+      defaultProps: {
+        fw: 600,
+        radius: 'sm',
+      }
     }
   },
 });

@@ -23,12 +23,12 @@ const formatDate = (dateString: string): string => {
 };
 
 const statusConfig = {
-    'draft': { color: 'gray', label: 'Draft', bg: 'gray.0' },
-    'pending-lead': { color: 'indigo', label: 'Pending Lead', bg: 'indigo.0' },
-    'pending-guide': { color: 'blue', label: 'Pending Guide', bg: 'blue.0' },
-    'approved': { color: 'cyan', label: 'Approved', bg: 'cyan.0' },
-    'final-approved': { color: 'teal', label: 'Finalized', bg: 'teal.0' },
-    'needs-revision': { color: 'red', label: 'Action Required', bg: 'red.0' },
+    'draft': { color: 'gray', label: 'Draft' },
+    'pending-lead': { color: 'indigo', label: 'Pending Lead' },
+    'pending-guide': { color: 'blue', label: 'Pending Guide' },
+    'approved': { color: 'cyan', label: 'Approved' },
+    'final-approved': { color: 'teal', label: 'Finalized' },
+    'needs-revision': { color: 'red', label: 'Action Required' },
 };
 
 export function Dashboard() {
@@ -194,7 +194,7 @@ export function Dashboard() {
             <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
                 <Card padding="lg" radius="md" withBorder h="100%">
                     <Group justify="space-between" mb="sm">
-                        <Badge variant="dot" color={status.color} size="lg" bg={status.bg} c={status.color}>
+                        <Badge variant="light" color={status.color} size="lg">
                             {status.label}
                         </Badge>
                         <ActionIcon variant="subtle" color="gray" onClick={() => navigate(`/logs/${log.id}`)}>
@@ -433,23 +433,23 @@ export function Dashboard() {
                         - Member/Lead: Sees this ONLY if teams.length === 0
                     */}
                     {(currentUser?.role === 'guide' || (currentUser?.role !== 'admin' && teams.length === 0)) && (
-                        <Paper p="xl" withBorder radius="md" bg={teams.length > 0 ? "white" : "orange.0"}>
+                        <Paper p="xl" withBorder radius="md" bg="var(--mantine-color-body)">
                             <Stack gap="sm">
                                 <Group>
                                     <ThemeIcon color={teams.length > 0 ? "indigo" : "orange"} variant="light" size="lg"><IconUsersGroup size={20} /></ThemeIcon>
-                                    <Title order={4} c={teams.length > 0 ? "indigo.9" : "orange.9"}>
+                                    <Title order={4} c={teams.length > 0 ? undefined : "orange.9"}>
                                         {teams.length > 0 ? "Join Another Team" : "No Team Assigned"}
                                     </Title>
                                 </Group>
                                 <Text size="sm" c="dimmed">
-                                    {teams.length > 0
-                                        ? "As a Faculty Guide, you can join multiple teams. Enter a new Team/Guide Code below."
-                                        : "You are not currently assigned to any team. Ask your Team Lead or Guide for their unique Referral Code to join immediately."}
+                                    {currentUser?.role === 'guide'
+                                        ? "As a Faculty Guide, you can help multiple teams. Enter a Guide Code to join another team."
+                                        : "You are not currently assigned to any team. Ask your Team Lead for their Team Code to join."}
                                 </Text>
-                                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm" verticalSpacing="xs">
+                                <Group align="flex-end" gap="sm">
                                     <TextInput
-                                        placeholder="Enter Team/Guide Code"
-                                        label="Referral Code"
+                                        placeholder={currentUser?.role === 'guide' ? "Enter Guide Code" : "Enter Team Code"}
+                                        label={currentUser?.role === 'guide' ? "Guide Code" : "Referral Code"}
                                         value={joinCode}
                                         onChange={(e) => setJoinCode(e.target.value)}
                                         style={{ flex: 1 }}
@@ -458,11 +458,10 @@ export function Dashboard() {
                                         loading={joining}
                                         onClick={handleJoinTeam}
                                         color={teams.length > 0 ? "indigo" : "orange"}
-                                        fullWidth
                                     >
                                         Join Team
                                     </Button>
-                                </SimpleGrid>
+                                </Group>
                             </Stack>
                         </Paper>
                     )}
@@ -487,7 +486,7 @@ export function Dashboard() {
                                 ))}
                             </SimpleGrid>
                         ) : (
-                            <Paper p={50} radius="md" withBorder ta="center" bg="gray.0">
+                            <Paper p={50} radius="md" withBorder ta="center" bg="var(--mantine-color-body)">
                                 <ThemeIcon size={60} radius="xl" variant="light" color="indigo" mb="md">
                                     <IconNotebook size={30} />
                                 </ThemeIcon>

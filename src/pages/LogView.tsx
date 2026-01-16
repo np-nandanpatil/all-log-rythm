@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Container, 
-  Title, 
-  Text, 
-  Group, 
-  Button, 
-  Paper, 
-  Stack, 
-  Badge, 
+import {
+  Container,
+  Title,
+  Text,
+  Group,
+  Button,
+  Paper,
+  Stack,
+  Badge,
   Textarea,
   Timeline,
   Avatar,
@@ -84,8 +84,8 @@ export function LogView() {
     try {
       let nextStatus = 'pending-lead';
       if (log.status === 'needs-revision') {
-        const lastApprover = log.comments && log.comments.length > 0 
-          ? log.comments[log.comments.length - 1].userRole 
+        const lastApprover = log.comments && log.comments.length > 0
+          ? log.comments[log.comments.length - 1].userRole
           : null;
         if (lastApprover === 'guide' || lastApprover === 'coordinator') {
           nextStatus = 'pending-guide';
@@ -138,8 +138,8 @@ export function LogView() {
   const canApproveAsGuide = (currentUser?.role === 'guide' && log?.status === 'pending-guide') || isAdmin;
   const canApproveAsCoordinator = (currentUser?.role === 'admin' && log?.status === 'approved') || isAdmin; // Admin is Coord now
   const canRequestRevision = (currentUser?.role === 'team_lead' && log?.status === 'pending-lead') ||
-                           (currentUser?.role === 'guide' && log?.status === 'pending-guide') ||
-                            isAdmin;
+    (currentUser?.role === 'guide' && log?.status === 'pending-guide') ||
+    isAdmin;
   const canResubmit = (currentUser?.id === log?.createdBy && log?.status === 'needs-revision') || isAdmin;
   const canDelete = currentUser?.role === 'team_lead' || isAdmin || (currentUser?.id === log?.createdBy && log?.status === 'draft');
 
@@ -235,7 +235,7 @@ export function LogView() {
   if (loading || !log) {
     return (
       <Layout>
-         <Text>Loading...</Text>
+        <Text>Loading...</Text>
       </Layout>
     );
   }
@@ -244,156 +244,156 @@ export function LogView() {
 
   return (
     <Layout>
-        <Container size="md">
-            <Button 
-                variant="subtle" 
-                color="gray" 
-                mb="lg"
-                leftSection={<IconArrowLeft size={16} />}
-                onClick={() => navigate('/dashboard')}
-            >
-                Back to Dashboard
-            </Button>
+      <Container size="md">
+        <Button
+          variant="subtle"
+          color="gray"
+          mb="lg"
+          leftSection={<IconArrowLeft size={16} />}
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to Dashboard
+        </Button>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-                <Paper p="xl" radius="lg" withBorder mb="xl" bg="white">
-                     <Group justify="space-between" mb="lg">
-                        <Stack gap={0}>
-                            <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Internship Log</Text>
-                            <Title order={1}>Week {log.weekNumber}</Title>
-                        </Stack>
-                        <Badge size="xl" radius="md" color={getStatusColor(log.status)}>
-                            {getLogStatusText(log.status)}
-                        </Badge>
-                     </Group>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+          <Paper p="xl" radius="lg" withBorder mb="xl">
+            <Group justify="space-between" mb="lg">
+              <Stack gap={0}>
+                <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Internship Log</Text>
+                <Title order={1}>Week {log.weekNumber}</Title>
+              </Stack>
+              <Badge size="xl" radius="md" color={getStatusColor(log.status)}>
+                {getLogStatusText(log.status)}
+              </Badge>
+            </Group>
 
-                     <Group mb="xl" gap="xl">
-                        <Group gap="xs">
-                            <IconClock size={18} color="gray" />
-                            <Text size="sm" c="dimmed">
-                                {formatDate(log.startDate)} - {formatDate(log.endDate)}
-                            </Text>
-                        </Group>
-                        <Text size="sm" c="dimmed">Author: <Text span fw={500} c="dark.8">{log.createdByName}</Text></Text>
-                     </Group>
+            <Group mb="xl" gap="xl">
+              <Group gap="xs">
+                <IconClock size={18} color="gray" />
+                <Text size="sm" c="dimmed">
+                  {formatDate(log.startDate)} - {formatDate(log.endDate)}
+                </Text>
+              </Group>
+              <Text size="sm" c="dimmed">Author: <Text span fw={500} c="var(--mantine-color-text)">{log.createdByName}</Text></Text>
+            </Group>
 
-                     <Group>
-                        {canEdit && (
-                            <Button variant="outline" onClick={() => navigate(`/logs/${id}/edit`)}>Edit Log</Button>
-                        )}
-                         {canSubmitForReview && (
-                            <Button onClick={handleSubmitForReview} loading={submitting} color="indigo">Submit for Review</Button>
-                        )}
-                        {canDelete && (
-                             <Button color="red" variant="light" onClick={handleDeleteLog} loading={submitting}>Delete</Button>
-                        )}
-                        {canApproveAsLead && (
-                             <Button onClick={() => handleStatusChange('pending-guide')} color="indigo" loading={submitting}>Approve & Send to Guide</Button>
-                        )}
-                         {canApproveAsGuide && (
-                             <Button onClick={() => handleStatusChange('approved')} color="teal" loading={submitting}>Approve Log</Button>
-                        )}
-                         {canApproveAsCoordinator && (
-                             <Button onClick={() => handleStatusChange('final-approved')} color="green" loading={submitting}>Final Approve</Button>
-                        )}
-                         {canResubmit && (
-                             <Button onClick={handleResubmitForReview} color="blue" loading={submitting}>Resubmit</Button>
-                        )}
-                     </Group>
-                </Paper>
+            <Group>
+              {canEdit && (
+                <Button variant="outline" onClick={() => navigate(`/logs/${id}/edit`)}>Edit Log</Button>
+              )}
+              {canSubmitForReview && (
+                <Button onClick={handleSubmitForReview} loading={submitting} color="indigo">Submit for Review</Button>
+              )}
+              {canDelete && (
+                <Button color="red" variant="light" onClick={handleDeleteLog} loading={submitting}>Delete</Button>
+              )}
+              {canApproveAsLead && (
+                <Button onClick={() => handleStatusChange('pending-guide')} color="indigo" loading={submitting}>Approve & Send to Guide</Button>
+              )}
+              {canApproveAsGuide && (
+                <Button onClick={() => handleStatusChange('approved')} color="teal" loading={submitting}>Approve Log</Button>
+              )}
+              {canApproveAsCoordinator && (
+                <Button onClick={() => handleStatusChange('final-approved')} color="green" loading={submitting}>Final Approve</Button>
+              )}
+              {canResubmit && (
+                <Button onClick={handleResubmitForReview} color="blue" loading={submitting}>Resubmit</Button>
+              )}
+            </Group>
+          </Paper>
 
-                <Paper p="xl" radius="lg" withBorder mb="xl" bg="white">
-                    <Title order={3} mb="lg">Weekly Activities</Title>
-                    <Timeline active={activities.length} bulletSize={24} lineWidth={2}>
-                        {activities.map((activity: any, index: number) => (
-                            <Timeline.Item 
-                                key={index} 
-                                bullet={<IconCheck size={12} />} 
-                                title={formatDate(activity.date)}
-                            >
-                                <Text c="dimmed" size="sm" mb="xs">
-                                    Duration: {activity.hours} hours
-                                </Text>
-                                <Text size="sm" mt={4}>{activity.description}</Text>
-                            </Timeline.Item>
-                        ))}
-                    </Timeline>
-                </Paper>
+          <Paper p="xl" radius="lg" withBorder mb="xl">
+            <Title order={3} mb="lg">Weekly Activities</Title>
+            <Timeline active={activities.length} bulletSize={24} lineWidth={2}>
+              {activities.map((activity: any, index: number) => (
+                <Timeline.Item
+                  key={index}
+                  bullet={<IconCheck size={12} />}
+                  title={formatDate(activity.date)}
+                >
+                  <Text c="dimmed" size="sm" mb="xs">
+                    Duration: {activity.hours} hours
+                  </Text>
+                  <Text size="sm" mt={4}>{activity.description}</Text>
+                </Timeline.Item>
+              ))}
+            </Timeline>
+          </Paper>
 
-                <Paper p="xl" radius="lg" withBorder bg="white">
-                   <Group justify="space-between" mb="lg">
-                        <Title order={3}>Comments & Feedback</Title>
-                        <Button variant="light" size="xs" onClick={() => setShowCommentForm(p => !p)}>
-                            {showCommentForm ? 'Cancel' : 'Add Comment'}
-                        </Button>
-                   </Group>
-                   
-                   {showCommentForm && (
-                       <Box mb="xl">
-                           <Textarea 
-                                placeholder="Type your comment here..." 
-                                minRows={3}
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                mb="sm"
-                           />
-                           <Button size="sm" onClick={handleAddComment} loading={submitting}>Post Comment</Button>
-                       </Box>
-                   )}
+          <Paper p="xl" radius="lg" withBorder>
+            <Group justify="space-between" mb="lg">
+              <Title order={3}>Comments & Feedback</Title>
+              <Button variant="light" size="xs" onClick={() => setShowCommentForm(p => !p)}>
+                {showCommentForm ? 'Cancel' : 'Add Comment'}
+              </Button>
+            </Group>
 
-                   {canRequestRevision && !showRevisionForm && (
-                       <Button 
-                            color="orange" 
-                            variant="light" 
-                            fullWidth 
-                            mb="xl" 
-                            onClick={() => setShowRevisionForm(true)}
-                       >
-                           Request Changes / Revision
-                       </Button>
-                   )}
+            {showCommentForm && (
+              <Box mb="xl">
+                <Textarea
+                  placeholder="Type your comment here..."
+                  minRows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  mb="sm"
+                />
+                <Button size="sm" onClick={handleAddComment} loading={submitting}>Post Comment</Button>
+              </Box>
+            )}
 
-                   {showRevisionForm && (
-                        <Box mb="xl" p="md" bg="orange.0" style={{ borderRadius: 8 }}>
-                           <Text fw={500} c="orange.9" mb="xs">Request Revision</Text>
-                           <Textarea 
-                                placeholder="Explain what needs to be changed..." 
-                                minRows={3}
-                                value={revisionMessage}
-                                onChange={(e) => setRevisionMessage(e.target.value)}
-                                mb="sm"
-                           />
-                           <Group justify="flex-end">
-                                <Button variant="subtle" color="gray" size="sm" onClick={() => setShowRevisionForm(false)}>Cancel</Button>
-                                <Button size="sm" color="orange" onClick={handleRequestRevision} loading={submitting}>Submit Request</Button>
-                           </Group>
-                       </Box>
-                   )}
+            {canRequestRevision && !showRevisionForm && (
+              <Button
+                color="orange"
+                variant="light"
+                fullWidth
+                mb="xl"
+                onClick={() => setShowRevisionForm(true)}
+              >
+                Request Changes / Revision
+              </Button>
+            )}
 
-                   <Stack gap="lg">
-                        {log.comments && log.comments.length > 0 ? (
-                            log.comments.map((comment: any, index: number) => (
-                                <Card key={index} withBorder radius="md" padding="md" bg="gray.0">
-                                    <Group mb="xs">
-                                        <Avatar color="indigo" radius="xl" size="sm">{comment.userName?.[0]}</Avatar>
-                                        <Box>
-                                            <Text size="sm" fw={500} lh={1}>{comment.userName}</Text>
-                                            <Text size="xs" c="dimmed" lh={1}>{comment.userRole}</Text>
-                                        </Box>
-                                        <Text size="xs" c="dimmed" style={{ marginLeft: 'auto' }}>
-                                            {new Date(comment.createdAt).toLocaleString()}
-                                        </Text>
-                                    </Group>
-                                    <Text size="sm">{comment.text}</Text>
-                                </Card>
-                            ))
-                        ) : (
-                            <Text c="dimmed" ta="center" py="lg">No comments yet.</Text>
-                        )}
-                   </Stack>
-                </Paper>
-            </motion.div>
-        </Container>
+            {showRevisionForm && (
+              <Box mb="xl" p="md" bg="var(--mantine-color-orange-light)" style={{ borderRadius: 8 }}>
+                <Text fw={500} c="var(--mantine-color-orange-text)" mb="xs">Request Revision</Text>
+                <Textarea
+                  placeholder="Explain what needs to be changed..."
+                  minRows={3}
+                  value={revisionMessage}
+                  onChange={(e) => setRevisionMessage(e.target.value)}
+                  mb="sm"
+                />
+                <Group justify="flex-end">
+                  <Button variant="subtle" color="gray" size="sm" onClick={() => setShowRevisionForm(false)}>Cancel</Button>
+                  <Button size="sm" color="orange" onClick={handleRequestRevision} loading={submitting}>Submit Request</Button>
+                </Group>
+              </Box>
+            )}
+
+            <Stack gap="lg">
+              {log.comments && log.comments.length > 0 ? (
+                log.comments.map((comment: any, index: number) => (
+                  <Card key={index} withBorder radius="md" padding="md" bg="var(--mantine-color-default)">
+                    <Group mb="xs">
+                      <Avatar color="indigo" radius="xl" size="sm">{comment.userName?.[0]}</Avatar>
+                      <Box>
+                        <Text size="sm" fw={500} lh={1}>{comment.userName}</Text>
+                        <Text size="xs" c="dimmed" lh={1}>{comment.userRole}</Text>
+                      </Box>
+                      <Text size="xs" c="dimmed" style={{ marginLeft: 'auto' }}>
+                        {new Date(comment.createdAt).toLocaleString()}
+                      </Text>
+                    </Group>
+                    <Text size="sm">{comment.text}</Text>
+                  </Card>
+                ))
+              ) : (
+                <Text c="dimmed" ta="center" py="lg">No comments yet.</Text>
+              )}
+            </Stack>
+          </Paper>
+        </motion.div>
+      </Container>
     </Layout>
   );
 } 

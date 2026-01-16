@@ -89,7 +89,7 @@ export default function LandingPage() {
             {/* Main Large Card */}
             <Grid.Col span={{ base: 12, md: 7 }}>
               <Paper h="100%" p="xl" radius="lg" withBorder style={{
-                background: 'linear-gradient(135deg, var(--mantine-color-indigo-0) 0%, white 100%)',
+                background: 'var(--mantine-color-body)',
                 borderColor: 'var(--mantine-color-indigo-1)'
               }}>
                 <Stack align="flex-start" h="100%" justify="space-between">
@@ -227,7 +227,7 @@ export default function LandingPage() {
         </Container>
 
         {/* Footer */}
-        <Box py="xl" bg="gray.0" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+        <Box py="xl" style={{ borderTop: '1px solid var(--mantine-color-gray-2)', backgroundColor: 'var(--mantine-color-body)' }}>
           <Container>
             <Group justify="space-between">
               <Group>

@@ -256,7 +256,7 @@ export function TeamManagement() {
           ) : (
             <>
               {/* Team Header */}
-              <Paper p="xl" withBorder radius="md" bg="indigo.0">
+              <Paper p="xl" withBorder radius="md" bg="var(--mantine-color-indigo-light)">
                 <Stack gap="sm">
                   <Group justify="space-between">
                     <div>
@@ -286,12 +286,12 @@ export function TeamManagement() {
                     <Badge size="lg" variant="white" color="indigo">Active</Badge>
                   </Group>
 
-                  <Divider my="xs" label="Referral Codes" labelPosition="left" />
+                  <Divider my="xs" label="Referral Codes" labelPosition="left" styles={{ label: { color: 'var(--mantine-color-indigo-9)' } }} />
 
                   <SimpleGrid cols={{ base: 1, sm: 2 }}>
                     {/* Member Code */}
                     <Box>
-                      <Text size="xs" c="dimmed" fw={700} tt="uppercase" mb={4}>Member Join Code</Text>
+                      <Text size="xs" c="indigo.8" fw={700} tt="uppercase" mb={4}>Member Join Code</Text>
                       <Group gap="xs">
                         <CodeBox code={team.referralCode || 'N/A'} />
                         <CopyBtn value={team.referralCode || ''} />
@@ -300,7 +300,7 @@ export function TeamManagement() {
 
                     {/* Guide Code */}
                     <Box>
-                      <Text size="xs" c="dimmed" fw={700} tt="uppercase" mb={4}>Guide Join Code</Text>
+                      <Text size="xs" c="indigo.8" fw={700} tt="uppercase" mb={4}>Guide Join Code</Text>
                       <Group gap="xs">
                         <CodeBox code={team.guideCode || 'N/A'} />
                         <CopyBtn value={team.guideCode || ''} />
@@ -354,7 +354,7 @@ export function TeamManagement() {
 
               {/* Join Requests */}
               {joinRequests.length > 0 && (
-                <Paper p="lg" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-blue-3)', backgroundColor: 'var(--mantine-color-blue-0)' }}>
+                <Paper p="lg" withBorder radius="md" style={{ borderColor: 'var(--mantine-color-blue-3)', backgroundColor: 'var(--mantine-color-blue-light)' }}>
                   <Group mb="md">
                     <IconUserPlus size={20} color="var(--mantine-color-blue-6)" />
                     <Title order={4}>Join Requests</Title>
@@ -362,7 +362,7 @@ export function TeamManagement() {
                   </Group>
                   <Stack gap="sm">
                     {joinRequests.map((req) => (
-                      <Group key={req.id} justify="space-between" p="sm" bg="white" style={{ borderRadius: 8, border: '1px solid var(--mantine-color-blue-2)' }}>
+                      <Group key={req.id} justify="space-between" p="sm" bg="var(--mantine-color-body)" style={{ borderRadius: 8, border: '1px solid var(--mantine-color-blue-2)' }}>
                         <div>
                           <Group gap="xs">
                             <Text fw={600} size="sm" lineClamp={1}>{req.invitedByName}</Text>
