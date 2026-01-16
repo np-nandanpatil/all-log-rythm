@@ -10,7 +10,6 @@ import {
   Stack,
   Badge,
   Textarea,
-  Timeline,
   Avatar,
   Box,
   Card
@@ -18,7 +17,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseService } from '../services';
 import { Layout } from '../components/Layout';
-import { IconArrowLeft, IconCheck, IconClock } from '@tabler/icons-react';
+import { IconArrowLeft } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 
 const formatDate = (dateString: string): string => {
@@ -259,8 +258,8 @@ export function LogView() {
           <Paper p="xl" radius="lg" withBorder mb="xl">
             <Group justify="space-between" mb="lg">
               <Stack gap={0}>
-                <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Internship Log</Text>
-                <Title order={1}>Week {log.weekNumber}</Title>
+                <Text tt="uppercase" c="dimmed" size="xs" fw={700} style={{ letterSpacing: '1px' }}>Daily Log</Text>
+                <Title order={1}>{formatDate(log.startDate)}</Title>
               </Stack>
               <Badge size="xl" radius="md" color={getStatusColor(log.status)}>
                 {getLogStatusText(log.status)}
@@ -268,12 +267,6 @@ export function LogView() {
             </Group>
 
             <Group mb="xl" gap="xl">
-              <Group gap="xs">
-                <IconClock size={18} color="gray" />
-                <Text size="sm" c="dimmed">
-                  {formatDate(log.startDate)} - {formatDate(log.endDate)}
-                </Text>
-              </Group>
               <Text size="sm" c="dimmed">Author: <Text span fw={500} c="var(--mantine-color-text)">{log.createdByName}</Text></Text>
             </Group>
 
@@ -303,21 +296,18 @@ export function LogView() {
           </Paper>
 
           <Paper p="xl" radius="lg" withBorder mb="xl">
-            <Title order={3} mb="lg">Weekly Activities</Title>
-            <Timeline active={activities.length} bulletSize={24} lineWidth={2}>
+            <Title order={3} mb="lg">Activities</Title>
+            <Stack gap="md">
               {activities.map((activity: any, index: number) => (
-                <Timeline.Item
-                  key={index}
-                  bullet={<IconCheck size={12} />}
-                  title={formatDate(activity.date)}
-                >
-                  <Text c="dimmed" size="sm" mb="xs">
-                    Duration: {activity.hours} hours
-                  </Text>
-                  <Text size="sm" mt={4}>{activity.description}</Text>
-                </Timeline.Item>
+                <Card key={index} withBorder shadow="sm" radius="md">
+                  <Group justify="space-between" align="flex-start" mb="xs">
+                    <Text fw={600} size="lg">{activity.description}</Text>
+                    <Badge variant="light" color="gray" size="lg">{activity.hours} hrs</Badge>
+                  </Group>
+                </Card>
               ))}
-            </Timeline>
+              {activities.length === 0 && <Text c="dimmed" fs="italic">No activities recorded.</Text>}
+            </Stack>
           </Paper>
 
           <Paper p="xl" radius="lg" withBorder>

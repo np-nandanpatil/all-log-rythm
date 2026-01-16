@@ -23,6 +23,9 @@ export interface Team {
   memberIds: string[];
   guideIds: string[];
   createdAt: Timestamp;
+  repoUrl?: string;     // Project Repository URL
+  techStack?: string[]; // Array of technologies used
+  description?: string; // Project Description
 }
 
 export type LogStatus = 'draft' | 'pending-lead' | 'pending-guide' | 'approved' | 'needs-revision';

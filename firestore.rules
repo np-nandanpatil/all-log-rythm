@@ -91,5 +91,22 @@ service cloud.firestore {
         get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leaderId == request.auth.uid
       ); 
     }
+
+    // Milestones collection
+    match /milestones/{milestoneId} {
+      allow read: if isAuthenticated();
+      
+      // Create: Only Team Leader or Admin
+      allow create: if isAuthenticated() && (
+        isAdmin() ||
+        get(/databases/$(database)/documents/teams/$(request.resource.data.teamId)).data.leaderId == request.auth.uid
+      );
+
+      // Update/Delete: Only Team Leader or Admin
+      allow update, delete: if isAuthenticated() && (
+        isAdmin() ||
+        get(/databases/$(database)/documents/teams/$(resource.data.teamId)).data.leaderId == request.auth.uid
+      );
+    }
   }
 }

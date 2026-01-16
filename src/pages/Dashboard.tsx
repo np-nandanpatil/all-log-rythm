@@ -7,7 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { firebaseService } from '../services';
 import { notifications } from '@mantine/notifications';
 import { Layout } from '../components/Layout';
-import { IconPlus, IconDotsVertical, IconCalendar, IconChartBar, IconCheck, IconClock, IconUsers, IconArrowRight, IconNotebook, IconUsersGroup, IconEdit, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconDotsVertical, IconChartBar, IconCheck, IconClock, IconUsers, IconArrowRight, IconNotebook, IconUsersGroup, IconEdit, IconTrash } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 
 // Helper function to format date
@@ -97,7 +97,8 @@ export function Dashboard() {
                         if (effectiveTeamIds.length > 0) {
                             console.log('Dashboard: Fetching teams for Member/Leader:', effectiveTeamIds);
                             const teamLogs = await firebaseService.getLogsByTeamIds(effectiveTeamIds);
-                            setLogs(teamLogs.sort((a: any, b: any) => b.weekNumber - a.weekNumber));
+                            // Sort by Date (Newest first)
+                            setLogs(teamLogs.sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
 
                             // Fetch Team Details
                             const userTeamsData = await Promise.all(
@@ -144,7 +145,7 @@ export function Dashboard() {
         if (currentUser?.role === 'admin' && selectedTeam) {
             setLoading(true);
             firebaseService.getLogs(selectedTeam).then((teamLogs) => {
-                setLogs(teamLogs.sort((a: any, b: any) => b.weekNumber - a.weekNumber));
+                setLogs(teamLogs.sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
                 setLoading(false);
             });
         } else if (currentUser?.role === 'admin' && !selectedTeam) {
@@ -204,14 +205,14 @@ export function Dashboard() {
 
                     <Stack gap={4} mb="md">
                         <Group justify="space-between">
-                            <Text size="xs" c="dimmed" fw={700} tt="uppercase">Week {log.weekNumber}</Text>
+                            <Text size="lg" fw={700}>{formatDate(log.startDate)}</Text>
                             {logTeam && <Badge size="xs" variant="light" color="gray">{logTeam.name}</Badge>}
                         </Group>
-                        <Text fw={600} size="lg" lineClamp={1}>
+                        <Text fw={500} size="md" lineClamp={1} c="dimmed">
                             {log.activities?.[0]?.description || "No specific title"}
                         </Text>
-                        <Text size="sm" c="dimmed">
-                            {log.activities?.length || 0} Activities Logged
+                        <Text size="xs" c="dimmed" mt={4}>
+                            {log.activities?.length || 0} Activities • {log.activities?.reduce((sum: number, act: any) => sum + (Number(act.hours) || 0), 0)} Hours
                         </Text>
                     </Stack>
 
@@ -221,11 +222,6 @@ export function Dashboard() {
                                 {log.createdByName?.[0]}
                             </Avatar>
                             <Text size="sm" fw={500}>{log.createdByName}</Text>
-                        </Group>
-
-                        <Group gap={4} ml="auto">
-                            <IconCalendar size={14} style={{ opacity: 0.5 }} />
-                            <Text size="xs" c="dimmed">{formatDate(log.startDate)}</Text>
                         </Group>
                     </Group>
                 </Card>

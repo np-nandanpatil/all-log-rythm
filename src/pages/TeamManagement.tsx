@@ -16,10 +16,16 @@ import {
   SimpleGrid,
   Divider,
   Box,
+  Modal,
+  Textarea,
+  Anchor,
+  ThemeIcon,
+  TagsInput,
   Menu,
   Alert
 } from '@mantine/core';
-import { IconUsers, IconMail, IconUserPlus, IconTrash, IconCheck } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
+import { IconUsers, IconMail, IconUserPlus, IconTrash, IconCheck, IconBrandGithub, IconDeviceLaptop, IconPencil, IconExternalLink } from '@tabler/icons-react';
 import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/Layout';
 import { firebaseService } from '../services';
@@ -42,6 +48,61 @@ export function TeamManagement() {
   const [joinRequests, setJoinRequests] = useState<any[]>([]);
 
   const [loadingTeam, setLoadingTeam] = useState(true);
+
+  // Project Details Modal State
+  const [projectModalOpened, { open: openProjectModal, close: closeProjectModal }] = useDisclosure(false);
+  const [projectForm, setProjectForm] = useState({
+    repoUrl: '',
+    techStack: [] as string[],
+    description: ''
+  });
+  const [savingProject, setSavingProject] = useState(false);
+
+  // Load project details when team loads
+  useEffect(() => {
+    if (team) {
+      setProjectForm({
+        repoUrl: team.repoUrl || '',
+        techStack: team.techStack || [],
+        description: team.description || ''
+      });
+    }
+  }, [team]);
+
+  const handleSaveProjectDetails = async () => {
+    if (!team) return;
+
+    // Validation
+    if (!projectForm.description.trim()) {
+      notifications.show({ title: 'Validation Error', message: 'Project Description is required.', color: 'red' });
+      return;
+    }
+    if (projectForm.techStack.length === 0) {
+      notifications.show({ title: 'Validation Error', message: 'Please add at least one technology to the Tech Stack.', color: 'red' });
+      return;
+    }
+
+    setSavingProject(true);
+    try {
+      await firebaseService.updateTeamDetails(team.id, {
+        repoUrl: projectForm.repoUrl,
+        techStack: projectForm.techStack,
+        description: projectForm.description
+      });
+
+      // Update local state immediately
+      setTeam(prev => ({ ...prev, ...projectForm }));
+      setTeams(prev => prev.map(t => t.id === team.id ? { ...t, ...projectForm } : t));
+
+      notifications.show({ title: 'Success', message: 'Project details updated', color: 'green' });
+      closeProjectModal();
+    } catch (error) {
+      console.error(error);
+      notifications.show({ title: 'Error', message: 'Failed to update project details', color: 'red' });
+    } finally {
+      setSavingProject(false);
+    }
+  };
 
   // Fetch ALL team data for the user
   const fetchTeamsData = async () => {
@@ -310,6 +371,106 @@ export function TeamManagement() {
                 </Stack>
               </Paper>
 
+              {/* Project Details Section */}
+              <Paper p="lg" radius="md" withBorder>
+                <Group justify="space-between" mb="md">
+                  <Group>
+                    <ThemeIcon size="lg" radius="md" variant="light" color="grape">
+                      <IconDeviceLaptop size={20} />
+                    </ThemeIcon>
+                    <Title order={4}>Project Details</Title>
+                  </Group>
+                  {currentUser?.role === 'team_lead' && (
+                    <Button
+                      variant="light"
+                      size="xs"
+                      leftSection={<IconPencil size={14} />}
+                      onClick={openProjectModal}
+                    >
+                      Edit Details
+                    </Button>
+                  )}
+                </Group>
+
+                <Stack gap="lg">
+                  {/* Description */}
+                  <Box>
+                    <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={4}>Description</Text>
+                    <Text size="sm">
+                      {team.description || <Text span c="dimmed" fs="italic">No description provided yet.</Text>}
+                    </Text>
+                  </Box>
+
+                  <SimpleGrid cols={{ base: 1, sm: 2 }}>
+                    {/* Tech Stack */}
+                    <Box>
+                      <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={8}>Tech Stack</Text>
+                      {team.techStack && team.techStack.length > 0 ? (
+                        <Group gap="xs">
+                          {team.techStack.map((tech: string) => (
+                            <Badge key={tech} variant="light" color="gray" size="sm">{tech}</Badge>
+                          ))}
+                        </Group>
+                      ) : (
+                        <Text size="sm" c="dimmed" fs="italic">Not specified</Text>
+                      )}
+                    </Box>
+
+                    {/* Repository */}
+                    <Box>
+                      <Text size="xs" fw={700} c="dimmed" tt="uppercase" mb={4}>Repository</Text>
+                      {team.repoUrl ? (
+                        <Anchor href={team.repoUrl} target="_blank" rel="noopener noreferrer" size="sm" underline="hover">
+                          <Group gap={6}>
+                            <IconBrandGithub size={16} />
+                            <Text span>{team.repoUrl.replace(/^https?:\/\//, '')}</Text>
+                            <IconExternalLink size={12} />
+                          </Group>
+                        </Anchor>
+                      ) : (
+                        <Text size="sm" c="dimmed" fs="italic">No repository linked</Text>
+                      )}
+                    </Box>
+                  </SimpleGrid>
+                </Stack>
+              </Paper>
+
+              <Modal opened={projectModalOpened} onClose={closeProjectModal} title={<Text fw={700}>Edit Project Details</Text>} centered size="lg">
+                <Stack>
+                  <Textarea
+                    label="Project Description"
+                    placeholder="Briefly describe your project..."
+                    minRows={5}
+                    autosize
+                    required
+                    value={projectForm.description}
+                    onChange={(e) => setProjectForm({ ...projectForm, description: e.target.value })}
+                  />
+
+                  <TagsInput
+                    label="Tech Stack"
+                    placeholder="Press Enter to add tags (e.g., React, Firebase)"
+                    required
+                    value={projectForm.techStack}
+                    onChange={(tags) => setProjectForm({ ...projectForm, techStack: tags })}
+                    description="Add technologies used in your project"
+                  />
+
+                  <TextInput
+                    label="Repository URL"
+                    placeholder="https://github.com/username/project"
+                    leftSection={<IconBrandGithub size={16} />}
+                    value={projectForm.repoUrl}
+                    onChange={(e) => setProjectForm({ ...projectForm, repoUrl: e.target.value })}
+                  />
+
+                  <Group justify="flex-end" mt="md">
+                    <Button variant="default" onClick={closeProjectModal}>Cancel</Button>
+                    <Button onClick={handleSaveProjectDetails} loading={savingProject}>Save Changes</Button>
+                  </Group>
+                </Stack>
+              </Modal>
+
               <SimpleGrid cols={{ base: 1, md: 2 }} spacing="lg">
                 {/* Invite Member */}
                 <Paper p="lg" withBorder radius="md">
@@ -446,6 +607,6 @@ export function TeamManagement() {
           )}
         </Stack>
       </Container>
-    </Layout>
+    </Layout >
   );
 }

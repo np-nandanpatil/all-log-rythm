@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Container, Title, Text, Button, Stack, Group, Box, SimpleGrid, ThemeIcon, Paper, Grid, Badge, Accordion } from '@mantine/core';
-import { IconRocket, IconUsers, IconShieldCheck, IconBrain, IconClock, IconDeviceAnalytics, IconArrowRight, IconCheck } from '@tabler/icons-react';
+import { Container, Title, Text, Button, Stack, Group, Box, SimpleGrid, ThemeIcon, Paper, Grid, Badge, Accordion, ActionIcon, useMantineColorScheme, useComputedColorScheme } from '@mantine/core';
+import { IconRocket, IconUsers, IconShieldCheck, IconBrain, IconClock, IconDeviceAnalytics, IconArrowRight, IconCheck, IconSun, IconMoon } from '@tabler/icons-react';
 import { AuthModal } from '../components/AuthModal';
 
 export default function LandingPage() {
   const [authModalOpened, setAuthModalOpened] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+
+  const { setColorScheme } = useMantineColorScheme();
+  const computedColorScheme = useComputedColorScheme('light', { getInitialValueInEffect: true });
 
   const openAuth = (mode: 'login' | 'signup') => {
     setAuthMode(mode);
@@ -24,6 +27,18 @@ export default function LandingPage() {
           }}
         >
           <Container size="lg" pt={{ base: '4rem', md: '8rem' }} pb={{ base: '3rem', md: '5rem' }}>
+            {/* Header / Theme Toggle */}
+            <Group justify="flex-end" mb="xl" style={{ position: 'absolute', top: '2rem', right: '2rem', zIndex: 10 }}>
+              <ActionIcon
+                onClick={() => setColorScheme(computedColorScheme === 'light' ? 'dark' : 'light')}
+                variant="default"
+                size="lg"
+                aria-label="Toggle color scheme"
+              >
+                {computedColorScheme === 'dark' ? <IconSun size={18} /> : <IconMoon size={18} />}
+              </ActionIcon>
+            </Group>
+
             <Stack gap="xl" align="center" ta="center">
               <Badge
                 size="lg"
@@ -119,24 +134,24 @@ export default function LandingPage() {
 
             {/* Side Vertical Card */}
             <Grid.Col span={{ base: 12, md: 5 }}>
-              <Paper h="100%" p="xl" radius="lg" withBorder bg="dark.9" style={{ color: 'white' }}>
+              <Paper h="100%" p="xl" radius="lg" withBorder>
                 <Stack h="100%" justify="space-between">
                   <div>
                     <ThemeIcon size={50} radius="md" color="lime" variant="light" mb="md">
                       <IconDeviceAnalytics size={28} />
                     </ThemeIcon>
-                    <Title order={3} mb="xs" c="white">Smart Analytics</Title>
-                    <Text c="gray.4">
+                    <Title order={3} mb="xs">Smart Analytics</Title>
+                    <Text c="dimmed">
                       Visualize your hours, tech stack usage, and team contribution velocity. Perfect for final presentation reports.
                     </Text>
                   </div>
                   <SimpleGrid cols={2} spacing="xs">
-                    <Box p="sm" bg="rgba(255,255,255,0.1)" style={{ borderRadius: 8 }}>
-                      <Text size="xs" c="gray.5">Total Hours</Text>
+                    <Box p="sm" style={{ borderRadius: 8, border: '1px solid var(--mantine-color-default-border)', background: 'var(--mantine-color-default)' }}>
+                      <Text size="xs" c="dimmed">Total Hours</Text>
                       <Text fw={700} size="xl">142h</Text>
                     </Box>
-                    <Box p="sm" bg="rgba(255,255,255,0.1)" style={{ borderRadius: 8 }}>
-                      <Text size="xs" c="gray.5">Logs</Text>
+                    <Box p="sm" style={{ borderRadius: 8, border: '1px solid var(--mantine-color-default-border)', background: 'var(--mantine-color-default)' }}>
+                      <Text size="xs" c="dimmed">Logs</Text>
                       <Text fw={700} size="xl">24</Text>
                     </Box>
                   </SimpleGrid>
@@ -168,7 +183,7 @@ export default function LandingPage() {
 
             {/* Small Card 3 */}
             <Grid.Col span={{ base: 12, md: 4 }}>
-              <Paper p="xl" radius="lg" withBorder h="100%" bg="gray.0">
+              <Paper p="xl" radius="lg" withBorder h="100%">
                 <ThemeIcon size={40} radius="md" color="orange" variant="light" mb="md">
                   <IconBrain size={24} />
                 </ThemeIcon>

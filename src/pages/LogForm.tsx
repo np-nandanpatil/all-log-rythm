@@ -8,7 +8,6 @@ import {
   Stack,
   Textarea,
   Paper,
-  Text,
   Box,
   Container,
 } from '@mantine/core';
@@ -16,7 +15,7 @@ import { DatePickerInput } from '@mantine/dates';
 import { notifications } from '@mantine/notifications';
 import { useAuth } from '../contexts/AuthContext';
 import { firebaseService } from '../services';
-import { formatDateForDisplay, formatDateForStorage, parseDateString } from '../utils/dateHelpers';
+import { formatDateForStorage, parseDateString } from '../utils/dateHelpers';
 import { Layout } from '../components/Layout';
 import { IconCalendar, IconPlus, IconTrash, IconDeviceFloppy, IconSend, IconX, IconArrowLeft } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
@@ -25,18 +24,13 @@ export function LogForm() {
   const navigate = useNavigate();
   const { id } = useParams();
   const { currentUser } = useAuth();
-  const [weekNumber, setWeekNumber] = useState<number>(1);
-  const [startDate, setStartDate] = useState<Date | null>(new Date());
-  const [endDate, setEndDate] = useState<Date | null>(new Date());
+  const [logDate, setLogDate] = useState<Date | null>(new Date());
   const [activities, setActivities] = useState<Array<{
-    date: Date | null;
     hours: number;
     description: string;
-  }>>([{ date: new Date(), hours: 0, description: '' }]);
+  }>>([{ hours: 0, description: '' }]);
   const [loading, setLoading] = useState(false);
-  const [weekNumberError, setWeekNumberError] = useState<string | null>(null);
-  const [dateRangeError, setDateRangeError] = useState<string | null>(null);
-  const [activityDateError, setActivityDateError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [logStatus, setLogStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -44,14 +38,10 @@ export function LogForm() {
       const fetchLog = async () => {
         const log = await firebaseService.getLogById(id);
         if (log) {
-          setWeekNumber(log.weekNumber);
-          const parsedStartDate = parseDateString(log.startDate);
-          const parsedEndDate = parseDateString(log.endDate);
-          setStartDate(parsedStartDate);
-          setEndDate(parsedEndDate);
+          const parsedDate = parseDateString(log.startDate);
+          setLogDate(parsedDate);
           setLogStatus(log.status);
           setActivities(log.activities.map((activity: any) => ({
-            date: parseDateString(activity.date),
             hours: activity.hours,
             description: activity.description
           })));
@@ -62,9 +52,7 @@ export function LogForm() {
   }, [id]);
 
   const handleAddActivity = () => {
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    setActivities([...activities, { date: now, hours: 0, description: '' }]);
+    setActivities([...activities, { hours: 0, description: '' }]);
   };
 
   const handleRemoveActivity = (index: number) => {
@@ -73,131 +61,67 @@ export function LogForm() {
 
   const handleActivityChange = (index: number, field: string, value: any) => {
     const newActivities = [...activities];
-    if (field === 'date') {
-      const parsedDate = parseDateString(value);
-      newActivities[index] = { ...newActivities[index], [field]: parsedDate };
-    } else {
-      newActivities[index] = { ...newActivities[index], [field]: value };
-    }
+    newActivities[index] = { ...newActivities[index], [field]: value };
     setActivities(newActivities);
-
-    if (field === 'date' && value && startDate && endDate) {
-      const activityDate = parseDateString(value);
-      if (activityDate && (activityDate < startDate || activityDate > endDate)) {
-        setActivityDateError(`Activity date must be within the log date range (${formatDateForDisplay(startDate)} - ${formatDateForDisplay(endDate)})`);
-      } else {
-        setActivityDateError(null);
-      }
-    }
   };
 
-  const checkWeekNumberExists = async (weekNum: number): Promise<boolean> => {
-    if (!currentUser?.teamIds?.[0]) return false;
-
-    if (id) {
-      const currentLog = await firebaseService.getLogById(id);
-      if (currentLog && currentLog.weekNumber === weekNum) {
-        return false;
-      }
-    }
-    return await firebaseService.isWeekNumberExists(weekNum, currentUser.teamIds[0], id);
-  };
-
-  const handleWeekNumberChange = async (value: string | number) => {
-    const numValue = typeof value === 'string' ? (value === '' ? 1 : parseInt(value, 10)) : value;
-    setWeekNumber(numValue);
-
-    const exists = await checkWeekNumberExists(numValue);
-    if (exists) {
-      setWeekNumberError(`Week ${numValue} log already exists. Please choose a different week.`);
-    } else {
-      setWeekNumberError(null);
-    }
-  };
-
-  const checkDateRangeOverlap = async (start: Date | null, end: Date | null): Promise<boolean> => {
-    if (!start || !end || !currentUser?.teamIds?.[0]) return false;
+  const checkDateOverlap = async (date: Date | null): Promise<boolean> => {
+    if (!date || !currentUser?.teamIds?.[0]) return false;
+    // For Daily Logs, we check if a log already exists for this exact date
+    // Re-using isDateRangeOverlapping with same start/end
     try {
+      if (id) {
+        const currentLog = await firebaseService.getLogById(id);
+        // If editing, and date hasn't changed, no overlap error with itself
+        if (currentLog && currentLog.startDate === formatDateForStorage(date)) {
+          return false;
+        }
+      }
       return await firebaseService.isDateRangeOverlapping(
-        formatDateForStorage(start),
-        formatDateForStorage(end),
+        formatDateForStorage(date),
+        formatDateForStorage(date),
         currentUser.teamIds[0],
         id
       );
     } catch (error) {
-      console.error('Error checking date range overlap:', error);
+      console.error('Error checking date overlap:', error);
       return false;
     }
   };
 
-  const handleStartDateChange = async (date: Date | null) => {
+  const handleDateChange = async (date: Date | null) => {
     const parsedDate = date ? parseDateString(date) : null;
-    setStartDate(parsedDate);
+    setLogDate(parsedDate);
 
-    if (parsedDate && endDate) {
-      const overlaps = await checkDateRangeOverlap(parsedDate, endDate);
+    if (parsedDate) {
+      const overlaps = await checkDateOverlap(parsedDate);
       if (overlaps) {
-        setDateRangeError('The date range overlaps with an existing log. Please choose a different date range.');
+        setDateError('A log for this date already exists.');
       } else {
-        setDateRangeError(null);
-      }
-
-      activities.forEach(activity => {
-        if (activity.date) {
-          const activityDate = parseDateString(activity.date);
-          if (activityDate && (activityDate < parsedDate || activityDate > endDate)) {
-            setActivityDateError(`Activity date ${formatDateForDisplay(activityDate)} is outside the log date range`);
-            return;
-          }
-        }
-      });
-      setActivityDateError(null);
-    }
-  };
-
-  const handleEndDateChange = async (date: Date | null) => {
-    const parsedDate = date ? parseDateString(date) : null;
-    setEndDate(parsedDate);
-
-    if (startDate && parsedDate) {
-      const overlaps = await checkDateRangeOverlap(startDate, parsedDate);
-      if (overlaps) {
-        setDateRangeError('The date range overlaps with an existing log.');
-      } else {
-        setDateRangeError(null);
+        setDateError(null);
       }
     }
   };
 
   const createLogData = (status: string) => {
-    // Detailed validation
-    const missingFields = [];
-    if (!startDate) missingFields.push('Start Date');
-    if (!endDate) missingFields.push('End Date');
-    if (!currentUser?.id) missingFields.push('User ID');
-    if (!currentUser?.name) missingFields.push('User Name');
+    if (!logDate) throw new Error('Log Date is required');
+    if (!currentUser?.id) throw new Error('User ID missing');
 
-    if (missingFields.length > 0) {
-      throw new Error(`Missing required profile data: ${missingFields.join(', ')}. Please update your profile.`);
-    }
-
-    // Get user's primary team ID
-    // Team leaders and admins can create logs without a team
-    // Regular members must be part of a team
     const teamId = currentUser.teamIds?.[0];
 
-    // Strict check for members, but clearer error
+    // Strict check for members
     if (!teamId && currentUser.role !== 'team_lead' && currentUser.role !== 'admin') {
-      console.error('DEBUG: User has no teamIds:', currentUser);
-      throw new Error('You appear not to be in a team. Please try refreshing the page or joining a team again.');
+      throw new Error('You appear not to be in a team. Please try refreshing the page.');
     }
 
+    const formattedDate = formatDateForStorage(logDate);
+
     return {
-      weekNumber,
-      startDate: formatDateForStorage(startDate),
-      endDate: formatDateForStorage(endDate),
+      weekNumber: 0, // Legacy field, not used for daily logs
+      startDate: formattedDate,
+      endDate: formattedDate, // Same as start date for daily log
       activities: activities.map(activity => ({
-        date: formatDateForStorage(activity.date),
+        date: formattedDate, // All activities happen on the Log Date
         hours: Number(activity.hours) || 0,
         description: activity.description
       })),
@@ -205,7 +129,7 @@ export function LogForm() {
       createdBy: currentUser.id,
       createdByName: currentUser.name,
       createdByUsername: currentUser.username || '',
-      teamId: teamId || null, // Ensure null if undefined to prevents Firestore error
+      teamId: teamId || null,
       createdAt: formatDateForStorage(new Date()),
       updatedAt: formatDateForStorage(new Date())
     };
@@ -213,113 +137,59 @@ export function LogForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('[SAVE DRAFT] Button clicked');
-    console.log('[SAVE DRAFT] Current user:', currentUser);
-    console.log('[SAVE DRAFT] Start date:', startDate);
-    console.log('[SAVE DRAFT] End date:', endDate);
-    console.log('[SAVE DRAFT] Activities:', activities);
+    if (!logDate || !currentUser?.id) {
+      notifications.show({ title: 'Missing Fields', message: 'Please select a date', color: 'red' });
+      return;
+    }
+    if (activities.some(activity => !activity.description)) {
+      notifications.show({ title: 'Incomplete Activities', message: 'Please describe all activities', color: 'red' });
+      return;
+    }
 
-    if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
-      console.error('[SAVE DRAFT] Missing required fields');
-      notifications.show({
-        title: 'Missing Fields',
-        message: 'Please fill in all required fields',
-        color: 'red'
-      });
-      return;
-    }
-    if (activities.some(activity => !activity.date || !activity.description)) {
-      console.error('[SAVE DRAFT] Missing activity details');
-      notifications.show({
-        title: 'Incomplete Activities',
-        message: 'Please fill in all activity details (date, hours, and description)',
-        color: 'red'
-      });
-      return;
-    }
     setLoading(true);
     try {
-      console.log('[SAVE DRAFT] Creating log data...');
       const logData = createLogData(id ? logStatus || 'draft' : 'draft');
-      console.log('[SAVE DRAFT] Log data created:', logData);
-
       if (id) {
-        console.log('[SAVE DRAFT] Updating existing log:', id);
         const currentLog = await firebaseService.getLogById(id);
         const updateData = currentLog ? { ...currentLog, ...logData } : logData;
         await firebaseService.updateLog(id, updateData);
-        console.log('[SAVE DRAFT] Log updated successfully');
       } else {
-        console.log('[SAVE DRAFT] Creating new log...');
-        const result = await firebaseService.createLog(logData);
-        console.log('[SAVE DRAFT] Log created successfully:', result);
+        await firebaseService.createLog(logData);
       }
-      console.log('[SAVE DRAFT] Navigating to dashboard...');
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('[SAVE DRAFT] Error saving log:', error);
-      notifications.show({
-        title: 'Error Saving Log',
-        message: error.message || 'Failed to save log',
-        color: 'red'
-      });
+      console.error('Error saving log:', error);
+      notifications.show({ title: 'Error', message: error.message || 'Failed to save log', color: 'red' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSubmitForReview = async () => {
-    console.log('[SUBMIT] Button clicked');
-    console.log('[SUBMIT] Current user:', currentUser);
-    console.log('[SUBMIT] Start date:', startDate);
-    console.log('[SUBMIT] End date:', endDate);
-    console.log('[SUBMIT] Activities:', activities);
+    if (!logDate || !currentUser?.id) {
+      notifications.show({ title: 'Missing Fields', message: 'Please select a date', color: 'red' });
+      return;
+    }
+    if (activities.some(activity => !activity.description)) {
+      notifications.show({ title: 'Incomplete Activities', message: 'Please describe all activities', color: 'red' });
+      return;
+    }
 
-    if (!startDate || !endDate || !currentUser?.id || !currentUser?.name) {
-      console.error('[SUBMIT] Missing required fields');
-      notifications.show({
-        title: 'Missing Fields',
-        message: 'Please fill in all required fields',
-        color: 'red'
-      });
-      return;
-    }
-    if (activities.some(activity => !activity.date || !activity.description)) {
-      console.error('[SUBMIT] Missing activity details');
-      notifications.show({
-        title: 'Incomplete Activities',
-        message: 'Please fill in all activity details (date, hours, and description)',
-        color: 'red'
-      });
-      return;
-    }
     setLoading(true);
     try {
-      console.log('[SUBMIT] Creating log data with pending-lead status...');
       const logData = createLogData('pending-lead');
-      console.log('[SUBMIT] Log data created:', logData);
-
       if (id) {
-        console.log('[SUBMIT] Updating existing log:', id);
         const currentLog = await firebaseService.getLogById(id);
         if (!currentLog) throw new Error('Log not found');
         const updateData = { ...logData, createdBy: currentLog.createdBy, createdByName: currentLog.createdByName };
         await firebaseService.updateLog(id, updateData);
-        console.log('[SUBMIT] Log updated successfully');
       } else {
-        console.log('[SUBMIT] Creating new log...');
-        const result = await firebaseService.createLog(logData);
-        console.log('[SUBMIT] Log created successfully:', result);
+        await firebaseService.createLog(logData);
       }
-      console.log('[SUBMIT] Navigating to dashboard...');
       navigate('/dashboard');
     } catch (error: any) {
-      console.error('[SUBMIT] Error submitting log:', error);
-      notifications.show({
-        title: 'Error Submitting Log',
-        message: error.message,
-        color: 'red'
-      });
+      console.error('Error submitting log:', error);
+      notifications.show({ title: 'Error', message: error.message, color: 'red' });
     } finally {
       setLoading(false);
     }
@@ -333,66 +203,39 @@ export function LogForm() {
             <Button variant="subtle" color="gray" leftSection={<IconArrowLeft size={16} />} onClick={() => navigate('/dashboard')}>
               Cancel
             </Button>
-            <Title order={2}>{id ? 'Edit Log' : 'Create New Log'}</Title>
+            <Title order={2}>{id ? 'Edit Daily Log' : 'Create New Daily Log'}</Title>
           </Group>
 
           <form onSubmit={handleSubmit}>
             <Stack gap="xl">
               <Paper p="xl" radius="lg" withBorder>
                 <Title order={4} mb="lg">Log Details</Title>
-                <Stack gap="md">
-                  <NumberInput
-                    label="Week Number"
-                    description="Which week of your internship is this?"
-                    min={1}
-                    max={52}
-                    value={weekNumber}
-                    onChange={handleWeekNumberChange}
-                    error={weekNumberError}
-                    w="100%"
-                    maw={200}
-                  />
-                  <Group grow>
-                    <DatePickerInput
-                      label="Start Date"
-                      placeholder="Pick date"
-                      value={startDate}
-                      onChange={handleStartDateChange}
-                      error={dateRangeError}
-                      leftSection={<IconCalendar size={16} />}
-                    />
-                    <DatePickerInput
-                      label="End Date"
-                      placeholder="Pick date"
-                      value={endDate}
-                      onChange={handleEndDateChange}
-                      leftSection={<IconCalendar size={16} />}
-                    />
-                  </Group>
-                </Stack>
+                <DatePickerInput
+                  label="Log Date"
+                  placeholder="Pick date"
+                  value={logDate}
+                  onChange={handleDateChange}
+                  error={dateError}
+                  leftSection={<IconCalendar size={16} />}
+                  w="100%"
+                  maw={300}
+                />
               </Paper>
 
               <Paper p="xl" radius="lg" withBorder>
                 <Group justify="space-between" mb="lg">
-                  <Title order={4}>Daily Activities</Title>
+                  <Title order={4}>Activities</Title>
                   <Button variant="light" size="sm" onClick={handleAddActivity} leftSection={<IconPlus size={16} />}>
                     Add Activity
                   </Button>
                 </Group>
-
-                {activityDateError && <Text c="red" size="sm" mb="md">{activityDateError}</Text>}
 
                 <Stack gap="lg">
                   {activities.map((activity, index) => (
                     <Box key={index} style={{ position: 'relative' }}>
                       <Paper withBorder p="md" radius="md" bg="var(--mantine-color-default)">
                         <Group align="flex-start" mb="sm">
-                          <DatePickerInput
-                            placeholder="Date"
-                            value={activity.date}
-                            onChange={(date) => handleActivityChange(index, 'date', date)}
-                            style={{ flex: 1 }}
-                          />
+                          {/* Removed Individual Date Picker */}
                           <NumberInput
                             placeholder="Hrs"
                             min={0}
@@ -400,17 +243,19 @@ export function LogForm() {
                             value={activity.hours}
                             onChange={(val) => handleActivityChange(index, 'hours', val)}
                             style={{ width: 80 }}
+                            label="Hours"
                           />
                           {activities.length > 1 && (
-                            <Button color="red" variant="subtle" p={0} onClick={() => handleRemoveActivity(index)}>
+                            <Button color="red" variant="subtle" p={0} onClick={() => handleRemoveActivity(index)} style={{ marginLeft: 'auto' }}>
                               <IconTrash size={16} />
                             </Button>
                           )}
                         </Group>
                         <Textarea
-                          placeholder="Describe what you did..."
+                          placeholder="Describe what you did today..."
                           minRows={2}
                           autosize
+                          label="Description"
                           value={activity.description}
                           onChange={(e) => handleActivityChange(index, 'description', e.target.value)}
                         />

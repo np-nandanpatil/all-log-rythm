@@ -211,6 +211,16 @@ export const firebaseService = {
     return convertTeamFromFirestore(d);
   },
 
+  async updateTeamDetails(teamId: string, updates: Partial<Team>) {
+    try {
+      const teamRef = doc(db, 'teams', teamId);
+      await updateDoc(teamRef, updates);
+    } catch (error) {
+      console.error('Error updating team details:', error);
+      throw error;
+    }
+  },
+
   async joinTeamById(teamId: string, userId: string, role: 'member' | 'guide') {
     const teamRef = doc(db, 'teams', teamId);
     const userRef = doc(db, 'users', userId);
