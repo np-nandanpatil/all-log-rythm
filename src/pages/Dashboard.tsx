@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Milestones } from '../components/Milestones';
+import { ProjectAnalytics } from '../components/ProjectAnalytics';
 import { Title, Button, Group, Text, Stack, SimpleGrid, Badge, Card, ThemeIcon, ActionIcon, Menu, Box, Loader, Alert, Paper, Avatar, Container, TextInput } from '@mantine/core';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -401,10 +403,27 @@ export function Dashboard() {
                                 New Log
                             </Button>
                         )}
+
+
                     </Group>
 
                     {/* TEAM SQUAD SECTION (Only for Non-Admins who have a team) */}
-                    {currentUser?.role !== 'admin' && teams.length > 0 && <TeamSquad teamRoster={teamRoster} />}
+                    {currentUser?.role !== 'admin' && teams.length > 0 && (
+                        <>
+                            <TeamSquad teamRoster={teamRoster} />
+                            {selectedTeam && (
+                                <Box mb="xl">
+                                    <Milestones
+                                        teamId={selectedTeam}
+                                        isLeader={currentUser?.role === 'team_lead'}
+                                    />
+                                    <Box mt="xl">
+                                        <ProjectAnalytics teamId={selectedTeam} />
+                                    </Box>
+                                </Box>
+                            )}
+                        </>
+                    )}
 
                     {/* No Team Alert */}
                     {/* Join Team Section - Always visible for Admin/Guide, or if user has no team */}

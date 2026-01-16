@@ -82,4 +82,15 @@ export interface Notification {
   createdAt?: Timestamp | Date | string;
   read: boolean;
   logId?: string;
+}
+
+export interface Milestone {
+  id: string;
+  teamId: string;
+  title: string;
+  status: 'planned' | 'in-progress' | 'completed' | 'delayed';
+  dueDate: Timestamp;
+  description?: string;
+  createdBy: string;
+  createdAt: Timestamp;
 } 

@@ -811,5 +811,57 @@ export const firebaseService = {
       console.error('Error removing team member:', error);
       throw error;
     }
+  },
+
+  // --- Milestone Management ---
+  async createMilestone(teamId: string, title: string, dueDate: Date, createdBy: string, description: string = '') {
+    try {
+      const milestoneRef = collection(db, 'milestones');
+      const newMilestone = {
+        teamId,
+        title,
+        status: 'planned',
+        dueDate: Timestamp.fromDate(dueDate),
+        description,
+        createdBy,
+        createdAt: Timestamp.now()
+      };
+      await addDoc(milestoneRef, newMilestone);
+    } catch (error) {
+      console.error("Error creating milestone:", error);
+      throw error;
+    }
+  },
+
+  async getMilestones(teamId: string) {
+    try {
+      const q = query(collection(db, 'milestones'), where('teamId', '==', teamId), orderBy('dueDate', 'asc'));
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error("Error fetching milestones:", error);
+      return [];
+    }
+  },
+
+  async updateMilestone(milestoneId: string, data: any) {
+    try {
+      const ref = doc(db, 'milestones', milestoneId);
+      await updateDoc(ref, data);
+    } catch (error) {
+      console.error("Error updating milestone:", error);
+      throw error;
+    }
+  },
+
+  async deleteMilestone(milestoneId: string) {
+    try {
+      await deleteDoc(doc(db, 'milestones', milestoneId));
+    } catch (error) {
+      console.error("Error deleting milestone:", error);
+      throw error;
+    }
   }
 };
+
+export default firebaseService;
