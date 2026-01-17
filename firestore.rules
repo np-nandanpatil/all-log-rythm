@@ -28,7 +28,11 @@ service cloud.firestore {
     // Write: ONLY the user themselves or an Admin
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow write: if isOwner(userId) || isAdmin(); 
+      // Write: Owner OR Admin OR Team Lead (only for teamIds)
+      allow write: if isOwner(userId) || isAdmin() || (
+        getUserRole() == 'team_lead' && 
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['teamIds'])
+      ); 
     }
 
     // Logs collection
