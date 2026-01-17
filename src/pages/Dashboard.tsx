@@ -192,12 +192,53 @@ export function Dashboard() {
         alert('Edit functionality coming soon in the next update!');
     };
 
-    const StatsCard = ({ title, value, icon: Icon, color }: any) => (
+    const handleRemoveMember = async (userId: string, role: string, userName: string) => {
+        if (!selectedTeam) return;
+        if (window.confirm(`Are you sure you want to remove ${userName} from the team?`)) {
+            try {
+                await firebaseService.removeTeamMember(selectedTeam, userId, role);
+                notifications.show({ title: 'Success', message: 'Member removed successfully', color: 'green' });
+
+                // Refresh Data
+                const team = teams.find(t => t.id === selectedTeam);
+                if (team) {
+                    // We need to manually update local state or re-fetch. Re-fetching is safer.
+                    // A simple way is to reload the page or trigger the useEffect.
+                    // Ideally, we update the `teams` state locally.
+                    const updatedTeams = teams.map(t => {
+                        if (t.id === selectedTeam) {
+                            return {
+                                ...t,
+                                memberIds: t.memberIds.filter((id: any) => id !== userId),
+                                guideIds: t.guideIds.filter((id: any) => id !== userId)
+                            };
+                        }
+                        return t;
+                    });
+                    setTeams(updatedTeams);
+
+                    // Also update roster
+                    setTeamRoster(prev => ({
+                        ...prev,
+                        members: prev.members.filter(m => m.id !== userId),
+                        guides: prev.guides.filter(g => g.id !== userId)
+                    }));
+                }
+
+            } catch (error) {
+                console.error(error);
+                notifications.show({ title: 'Error', message: 'Failed to remove member', color: 'red' });
+            }
+        }
+    };
+
+    const StatsCard = ({ title, value, icon: Icon, color, subtitle }: any) => (
         <Paper withBorder p="md" radius="md">
             <Group justify="space-between">
                 <div>
                     <Text c="dimmed" tt="uppercase" fw={700} fz="xs">{title}</Text>
                     <Text fw={700} fz="xl">{value}</Text>
+                    {subtitle && <Text size="xs" c="dimmed">{subtitle}</Text>}
                 </div>
                 <ThemeIcon color={color} variant="light" size={38} radius="md">
                     <Icon size={20} />
@@ -210,15 +251,19 @@ export function Dashboard() {
     const LogCard = ({ log }: { log: any }) => {
         const status = statusConfig[log.status as keyof typeof statusConfig] || statusConfig['draft'];
         const logTeam = teams.find(t => t.id === log.teamId);
+        const isMyLog = log.createdBy === currentUser?.uid;
 
         return (
             <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
-                <Card padding="lg" radius="md" withBorder h="100%">
+                <Card padding="lg" radius="md" withBorder h="100%" style={isMyLog ? { borderColor: 'var(--mantine-color-indigo-4)', borderWidth: 2 } : {}}>
                     <Group justify="space-between" mb="sm">
                         <Badge variant="light" color={status.color} size="lg">
                             {status.label}
                         </Badge>
-                        <ActionIcon variant="subtle" color="gray" onClick={() => navigate(`/logs/${log.id}`)}>
+                        {isMyLog && <Badge variant="filled" color="indigo" size="sm">You</Badge>}
+                    </Group>
+                    <Group justify="space-between" align="center" mb="xs">
+                        <ActionIcon variant="subtle" color="gray" onClick={() => navigate(`/logs/${log.id}`)} ml="auto">
                             <IconArrowRight size={16} />
                         </ActionIcon>
                     </Group>
@@ -238,10 +283,10 @@ export function Dashboard() {
 
                     <Group mt="auto" pt="md" style={{ borderTop: '1px solid var(--mantine-color-gray-2)' }}>
                         <Group gap="xs">
-                            <Avatar color="indigo" radius="xl" size="sm">
+                            <Avatar color={isMyLog ? "indigo" : "gray"} radius="xl" size="sm">
                                 {log.createdByName?.[0]}
                             </Avatar>
-                            <Text size="sm" fw={500}>{log.createdByName}</Text>
+                            <Text size="sm" fw={isMyLog ? 700 : 500}>{log.createdByName} {isMyLog && "(You)"}</Text>
                         </Group>
                     </Group>
                 </Card>
@@ -250,24 +295,30 @@ export function Dashboard() {
     };
 
     // Filter logs based on selection for Non-Admins with multiple teams
-    // For MEMBERS: Show ONLY their own logs by default to keep stats personal
-    const isMember = currentUser?.role === 'member';
+    // For MEMBERS: NOW SHOWING ALL TEAM LOGS, but distinguishing personal ones
 
-    const personalLogs = logs.filter(l => l.createdBy === currentUser?.uid);
-    const displayedLogs = (currentUser?.role === 'admin' || !isMember)
-        ? ((currentUser?.role !== 'admin' && selectedTeam) ? logs.filter(l => l.teamId === selectedTeam) : logs)
-        : personalLogs; // Members see only their own logs
+    // Logs strictly for the current selected team (or all logs if admin/no-team context - though simplified here)
+    // If selectedTeam is set, we filter by it. If not (admin viewing all), we show all. 
+    // For member/lead/guide with implicit selectedTeam (set in useEffect), this logic holds.
+    const effectiveLogs = selectedTeam ? logs.filter(l => l.teamId === selectedTeam) : logs;
 
-    // Stats Logic (PERSONALIZED)
-    // If Member, calculate based on personalLogs. If Leader/Admin, calculate based on displayedLogs (Team view)
-    const statsSource = isMember ? personalLogs : logs;
+    const personalLogs = effectiveLogs.filter(l => l.createdBy === currentUser?.uid);
+    const displayedLogs = effectiveLogs; // Everyone sees all logs for the context
 
-    const pendingCount = statsSource.filter(l => l.status.includes('pending')).length;
-    const approvedCount = statsSource.filter(l => l.status === 'approved' || l.status === 'final-approved').length;
-    const totalHours = statsSource.reduce((acc, log) => {
-        const logHours = log.activities?.reduce((sum: number, act: any) => sum + (Number(act.hours) || 0), 0) || 0;
-        return acc + logHours;
-    }, 0);
+    // Stats Logic (DUAL METRICS)
+    const calculateStats = (sourceLogs: any[]) => {
+        return {
+            pending: sourceLogs.filter(l => l.status.includes('pending')).length,
+            approved: sourceLogs.filter(l => l.status === 'approved' || l.status === 'final-approved').length,
+            hours: sourceLogs.reduce((acc, log) => {
+                const logHours = log.activities?.reduce((sum: number, act: any) => sum + (Number(act.hours) || 0), 0) || 0;
+                return acc + logHours;
+            }, 0)
+        };
+    };
+
+    const teamStats = calculateStats(effectiveLogs);
+    const myStats = calculateStats(personalLogs);
 
     // Effect to update roster when selectedTeam changes (for Guides/Multi-team users)
     useEffect(() => {
@@ -369,7 +420,7 @@ export function Dashboard() {
                 <ReportTemplate
                     ref={componentRef}
                     logs={displayedLogs}
-                    totalHours={totalHours}
+                    totalHours={teamStats.hours}
                     team={teams.find(t => t.id === (selectedTeam || teams[0]?.id))}
                     studentName={currentUser?.name || ''}
                     teamRoster={teamRoster}
@@ -447,7 +498,7 @@ export function Dashboard() {
                     {/* TEAM SQUAD SECTION (Only for Non-Admins who have a team) */}
                     {currentUser?.role !== 'admin' && teams.length > 0 && (
                         <>
-                            <TeamSquad teamRoster={teamRoster} />
+                            <TeamSquad teamRoster={teamRoster} isLeader={currentUser?.role === 'team_lead'} onRemoveMember={handleRemoveMember} />
                             {selectedTeam && (
                                 <Box mb="xl">
                                     <Milestones
@@ -521,13 +572,29 @@ export function Dashboard() {
                         )
                     )}
 
-                    {/* Stats Row (Only if logs exist or user is standard) */}
+                    {/* Stats Row */}
                     {logs.length > 0 && (
-                        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-                            <StatsCard title="Pending Review" value={pendingCount} icon={IconClock} color="indigo" />
-                            <StatsCard title="Approved Logs" value={approvedCount} icon={IconCheck} color="teal" />
-                            <StatsCard title="Total Hours" value={totalHours + "h"} icon={IconChartBar} color="blue" />
-                        </SimpleGrid>
+                        <Box>
+                            {/* Personal Stats */}
+                            <Text size="sm" fw={700} c="dimmed" mb="xs">MY ACTIVITY</Text>
+                            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md" mb="lg">
+                                <StatsCard title="My Pending" value={myStats.pending} icon={IconClock} color="indigo" subtitle="Logs waiting for review" />
+                                <StatsCard title="My Approved" value={myStats.approved} icon={IconCheck} color="teal" subtitle="Verified logs" />
+                                <StatsCard title="My Hours" value={myStats.hours + "h"} icon={IconChartBar} color="blue" subtitle="Total logged time" />
+                            </SimpleGrid>
+
+                            {/* Team Stats (Only if specific team selected, or redundant if solo? No, always good to compare) */}
+                            {selectedTeam && (
+                                <>
+                                    <Text size="sm" fw={700} c="dimmed" mb="xs">TEAM OVERVIEW</Text>
+                                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                                        <StatsCard title="Team Pending" value={teamStats.pending} icon={IconUsers} color="violet" subtitle="Total team queue" />
+                                        <StatsCard title="Team Approved" value={teamStats.approved} icon={IconCheck} color="green" subtitle="Total verified work" />
+                                        <StatsCard title="Team Hours" value={teamStats.hours + "h"} icon={IconChartBar} color="cyan" subtitle="Cumulative effort" />
+                                    </SimpleGrid>
+                                </>
+                            )}
+                        </Box>
                     )}
 
                     {/* Logs Grid */}
@@ -561,7 +628,7 @@ export function Dashboard() {
     );
 }
 
-function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], members: any[] } }) {
+function TeamSquad({ teamRoster, isLeader, onRemoveMember }: { teamRoster: { leader?: any, guides: any[], members: any[] }, isLeader: boolean, onRemoveMember: (id: string, role: string, name: string) => void }) {
     return (
         <Paper withBorder p="md" radius="md" mb="xl">
             <Group mb="md" justify="space-between">
@@ -601,6 +668,11 @@ function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], 
                                         <Text size="sm" fw={600}>{g.name}</Text>
                                         <Text size="xs" c="dimmed">{g.email}</Text>
                                     </div>
+                                    {isLeader && (
+                                        <ActionIcon color="red" variant="subtle" size="sm" onClick={() => onRemoveMember(g.id, 'guide', g.name)}>
+                                            <IconTrash size={14} />
+                                        </ActionIcon>
+                                    )}
                                 </Group>
                             ))}
                         </Stack>
@@ -619,6 +691,11 @@ function TeamSquad({ teamRoster }: { teamRoster: { leader?: any, guides: any[], 
                                         <Text size="sm" fw={600}>{m.name}</Text>
                                         <Text size="xs" c="dimmed">{m.email}</Text>
                                     </div>
+                                    {isLeader && (
+                                        <ActionIcon color="red" variant="subtle" size="sm" onClick={() => onRemoveMember(m.id, 'member', m.name)}>
+                                            <IconTrash size={14} />
+                                        </ActionIcon>
+                                    )}
                                 </Group>
                             ))}
                         </Stack>
