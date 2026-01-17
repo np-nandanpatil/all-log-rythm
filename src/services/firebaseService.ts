@@ -812,9 +812,13 @@ export const firebaseService = {
       const userRef = doc(db, 'users', userId);
 
       await runTransaction(db, async (transaction: any) => {
+        // 1. Perform ALL Reads first
         const teamDoc = await transaction.get(teamRef);
+        const userDoc = await transaction.get(userRef);
+
         if (!teamDoc.exists()) throw new Error("Team does not exist");
 
+        // 2. Perform Writes
         const updates: any = {};
         if (role === 'guide') {
           const guides = teamDoc.data().guideIds || [];
@@ -825,7 +829,6 @@ export const firebaseService = {
         }
         transaction.update(teamRef, updates);
 
-        const userDoc = await transaction.get(userRef);
         if (userDoc.exists()) {
           const userTeams = userDoc.data().teamIds || [];
           transaction.update(userRef, {
