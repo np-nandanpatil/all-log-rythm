@@ -193,37 +193,33 @@ export function Dashboard() {
     };
 
     const handleRemoveMember = async (userId: string, role: string, userName: string) => {
-        if (!selectedTeam) return;
+        const teamIdToUpdate = selectedTeam || teams[0]?.id;
+        if (!teamIdToUpdate) return;
+
         if (window.confirm(`Are you sure you want to remove ${userName} from the team?`)) {
             try {
-                await firebaseService.removeTeamMember(selectedTeam, userId, role);
+                await firebaseService.removeTeamMember(teamIdToUpdate, userId, role);
                 notifications.show({ title: 'Success', message: 'Member removed successfully', color: 'green' });
 
                 // Refresh Data
-                const team = teams.find(t => t.id === selectedTeam);
-                if (team) {
-                    // We need to manually update local state or re-fetch. Re-fetching is safer.
-                    // A simple way is to reload the page or trigger the useEffect.
-                    // Ideally, we update the `teams` state locally.
-                    const updatedTeams = teams.map(t => {
-                        if (t.id === selectedTeam) {
-                            return {
-                                ...t,
-                                memberIds: t.memberIds.filter((id: any) => id !== userId),
-                                guideIds: t.guideIds.filter((id: any) => id !== userId)
-                            };
-                        }
-                        return t;
-                    });
-                    setTeams(updatedTeams);
+                const updatedTeams = teams.map(t => {
+                    if (t.id === teamIdToUpdate) {
+                        return {
+                            ...t,
+                            memberIds: t.memberIds.filter((id: any) => id !== userId),
+                            guideIds: t.guideIds.filter((id: any) => id !== userId)
+                        };
+                    }
+                    return t;
+                });
+                setTeams(updatedTeams);
 
-                    // Also update roster
-                    setTeamRoster(prev => ({
-                        ...prev,
-                        members: prev.members.filter(m => m.id !== userId),
-                        guides: prev.guides.filter(g => g.id !== userId)
-                    }));
-                }
+                // Also update roster
+                setTeamRoster(prev => ({
+                    ...prev,
+                    members: prev.members.filter(m => m.id !== userId),
+                    guides: prev.guides.filter(g => g.id !== userId)
+                }));
 
             } catch (error) {
                 console.error(error);
