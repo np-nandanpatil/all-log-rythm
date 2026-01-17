@@ -122,7 +122,7 @@ export const firebaseService = {
         // For now, let's assume the calling code might use 'setDoc' logic if not existing.
         // But to be safe and simple, let's return the user.
       });
-    } catch (e) { console.log(e) }
+    } catch (e) { console.error('Error fetching logs:', e); }
   },
 
   async getUserById(id: string): Promise<User | null> {

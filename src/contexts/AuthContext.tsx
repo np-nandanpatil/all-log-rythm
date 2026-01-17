@@ -4,7 +4,7 @@ import { signInWithEmailAndPassword, signOut as firebaseSignOut, onAuthStateChan
 import { doc, getDoc, updateDoc, arrayUnion, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { User, UserRole } from '../types';
 
-console.log('AuthContext loaded');
+
 
 interface AuthContextType {
   currentUser: User | null;
@@ -36,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const syncApprovedTeams = async (uid: string, email: string, currentTeamIds: string[]) => {
     try {
       if (!email) return currentTeamIds;
-      console.log('DEBUG: Syncing approved teams for', email);
+
 
       const q = query(
         collection(db, 'invitations'),
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
 
       if (newTeamIds.length > 0) {
-        console.log('DEBUG: Found new approved teams:', newTeamIds);
+
         const userRef = doc(db, 'users', uid);
         await updateDoc(userRef, {
           teamIds: arrayUnion(...newTeamIds)
@@ -83,26 +83,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('DEBUG: Auth State Changed:', user ? user.uid : 'No User');
+
       if (isSigningUp.current) {
-        console.log('Skipping auth state change during signup');
+
         return;
       }
 
       setLoading(true);
       if (user) {
         try {
-          console.log('DEBUG: Fetching user profile for:', user.uid);
+
           // Fetch user profile from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
-            console.log('DEBUG: User profile found');
+
             const userData = userDoc.data();
 
             // SUPER ADMIN ENFORCEMENT
             let finalRole = userData.role as UserRole;
             if (user.email === 'nandanpatilm15@gmail.com' && finalRole !== 'admin') {
-              console.log('DEBUG: Enforcing Super Admin Role for Creator');
+
               finalRole = 'admin';
               // Update Firestore to reflect this permanently
               const { updateDoc } = await import('firebase/firestore');
@@ -142,7 +142,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Create the user document in Firestore
             const { setDoc } = await import('firebase/firestore');
             await setDoc(doc(db, 'users', user.uid), basicUserData);
-            console.log('DEBUG: Auto-created user document for', user.uid);
+
 
             // Set the current user with the basic profile
             setCurrentUser(basicUserData);
@@ -154,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setCurrentUser(null);
         }
       } else {
-        console.log('DEBUG: No user in auth state');
+
         // Don't set error here, as null user is valid state
         setCurrentUser(null);
       }
@@ -213,10 +213,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         createdAt: new Date().toISOString()
       };
 
-      console.log('DEBUG: Writing user document to Firestore');
+
       const { setDoc, doc } = await import('firebase/firestore');
       await setDoc(doc(db, 'users', uid), newUser);
-      console.log('DEBUG: User document written successfully');
+
 
       // 2. Handle Team Creation / Joining
       let teamIdToJoin: string | null = null;
@@ -232,11 +232,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // ... (Invitation logic same as before)
 
         // Check invitations
-        console.log('DEBUG: Checking invitations for', email);
+
         const invitations = await firebaseService.getInvitationsByEmail(email);
         if (invitations.length > 0) {
           const invitation: any = invitations[0];
-          console.log('DEBUG: Found invitation', invitation.id, 'for team', invitation.teamId);
+
           teamIdToJoin = invitation.teamId;
           invitationIdToAccept = invitation.id;
         }
@@ -259,10 +259,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Join Team Logic
       if (invitationIdToAccept && teamIdToJoin) {
-        console.log('DEBUG: Accepting invitation', invitationIdToAccept);
+
         await firebaseService.acceptInvitation(invitationIdToAccept, uid);
       } else if (teamIdToJoin) {
-        console.log('DEBUG: Joining team via code', teamIdToJoin);
+
         await firebaseService.joinTeamByCode(
           teamData?.joinCode || '', // We need the code if joining by code
           uid,

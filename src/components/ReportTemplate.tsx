@@ -1,6 +1,6 @@
-import React, { forwardRef } from 'react';
+import { forwardRef } from 'react';
 import { Box, Title, Text, Table, Badge, Grid, Stack, Divider, Paper, Group, ThemeIcon } from '@mantine/core';
-import { IconClock, IconBrain, IconUser, IconUsersGroup } from '@tabler/icons-react';
+import { IconClock, IconUser, IconUsersGroup } from '@tabler/icons-react';
 import { Log, Team } from '../types';
 
 interface ReportTemplateProps {
@@ -38,7 +38,17 @@ export const ReportTemplate = forwardRef<HTMLDivElement, ReportTemplateProps>(
         });
 
         return (
-            <Box p="xl" ref={ref} style={{ background: 'white', minHeight: '100vh', color: 'black' }}>
+            <Box p="xl" ref={ref} style={{ background: 'white', color: 'black', width: '100%' }}>
+                <style type="text/css" media="print">
+                    {`
+                        @page { size: auto; margin: 20mm; }
+                        html, body { height: auto; overflow: visible !important; }
+                        /* Ensure table rows don't break awkwardly */
+                        tr { page-break-inside: avoid; }
+                        /* Ensure cards don't break */
+                        .mantine-Paper-root { page-break-inside: avoid; }
+                    `}
+                </style>
                 {/* Header */}
                 <Grid mb="xl" align="center">
                     <Grid.Col span={8}>
@@ -91,7 +101,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, ReportTemplateProps>(
 
                 {/* Project Info if available */}
                 {team?.description && (
-                    <Box mb="xl">
+                    <Box mb="xl" style={{ pageBreakInside: 'avoid' }}>
                         <Title order={4} mb="sm">Project Description</Title>
                         <Text size="sm" style={{ lineHeight: 1.6 }}>{team.description}</Text>
                     </Box>
@@ -133,7 +143,7 @@ export const ReportTemplate = forwardRef<HTMLDivElement, ReportTemplateProps>(
                     </Table.Tbody>
                 </Table>
 
-                <Box mt="4rem" style={{ textAlign: 'center' }}>
+                <Box mt="4rem" style={{ textAlign: 'center', pageBreakInside: 'avoid' }}>
                     <Text size="xs" c="dimmed">Verified by LogSphere Academic Suite</Text>
                 </Box>
             </Box>

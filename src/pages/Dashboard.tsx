@@ -90,12 +90,12 @@ export function Dashboard() {
 
     useEffect(() => {
         if (currentUser) {
-            console.log('Dashboard: Current User:', currentUser.role, currentUser.uid, currentUser.teamIds);
+
             const fetchData = async () => {
                 setLoading(true);
                 try {
                     if (currentUser.role === 'admin') {
-                        console.log('Dashboard: Fetching all teams for Admin');
+
                         const allTeams = await firebaseService.getAllTeams();
                         setTeams(allTeams);
                         if (!selectedTeam) setLogs([]);
@@ -106,7 +106,7 @@ export function Dashboard() {
                             : (currentUser as any).teamId ? [(currentUser as any).teamId] : [];
 
                         if (effectiveTeamIds.length > 0) {
-                            console.log('Dashboard: Fetching teams for Member/Leader:', effectiveTeamIds);
+
                             const teamLogs = await firebaseService.getLogsByTeamIds(effectiveTeamIds);
                             // Sort by Date (Newest first)
                             setLogs(teamLogs.sort((a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()));
@@ -136,7 +136,7 @@ export function Dashboard() {
                                 setTeamRoster({ leader, guides, members });
                             }
                         } else {
-                            console.log('Dashboard: No team IDs found for user');
+
                             setLogs([]);
                             setTeams([]);
                         }
