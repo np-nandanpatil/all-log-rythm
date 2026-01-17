@@ -583,8 +583,8 @@ export function Dashboard() {
                                 <StatsCard title="My Hours" value={myStats.hours + "h"} icon={IconChartBar} color="blue" subtitle="Total logged time" />
                             </SimpleGrid>
 
-                            {/* Team Stats (Only if specific team selected, or redundant if solo? No, always good to compare) */}
-                            {selectedTeam && (
+                            {/* Team Stats (Visible if team selected OR if user is non-admin with teams) */}
+                            {(selectedTeam || (currentUser?.role !== 'admin' && teams.length > 0)) && (
                                 <>
                                     <Text size="sm" fw={700} c="dimmed" mb="xs">TEAM OVERVIEW</Text>
                                     <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
