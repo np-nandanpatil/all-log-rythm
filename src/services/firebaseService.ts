@@ -399,6 +399,22 @@ export const firebaseService = {
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
   },
 
+  async getUserPendingRequests(userId: string) {
+    try {
+      const q = query(
+        collection(db, 'invitations'),
+        where('invitedBy', '==', userId),
+        where('status', '==', 'pending'),
+        where('type', '==', 'request')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      console.error('Error fetching user pending requests:', error);
+      return [];
+    }
+  },
+
   async approveJoinRequest(requestId: string) {
     try {
       // 0. Get the request first (Source of Truth)

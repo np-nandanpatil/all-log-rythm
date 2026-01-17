@@ -42,22 +42,22 @@ export function AuthModal({ opened, onClose, mode, onModeChange }: AuthModalProp
     try {
       if (isRegistering) {
         if (!name.trim()) throw new Error('Name is required');
-        
-        if (email.indexOf('.edu') === -1) { 
-            throw new Error('Access Restricted: Please use your university .edu email.');
+
+        if (email.indexOf('.edu') === -1) {
+          throw new Error('Access Restricted: Please use your university .edu email.');
         }
 
         const teamData: any = {};
         if (role === 'team_lead') {
-            if (!teamName.trim()) throw new Error("Team Name is required.");
-            teamData.createTeam = true;
-            teamData.teamName = teamName;
+          if (!teamName.trim()) throw new Error("Team Name is required.");
+          teamData.createTeam = true;
+          teamData.teamName = teamName;
         } else if (role === 'member' || role === 'guide') {
-             // Pass referral code if entered. 
-             // Logic to check invitations is now handled in AuthContext AFTER signup.
-             if (referralCode.trim()) {
-                 teamData.joinCode = referralCode.trim();
-             }
+          // Pass referral code if entered. 
+          // Logic to check invitations is now handled in AuthContext AFTER signup.
+          if (referralCode.trim()) {
+            teamData.joinCode = referralCode.trim();
+          }
         }
 
         await signup(email, password, { name, role }, teamData);
@@ -72,7 +72,11 @@ export function AuthModal({ opened, onClose, mode, onModeChange }: AuthModalProp
       }
     } catch (error: any) {
       console.error('Auth error:', error);
-      setError(error.message || 'Failed to authenticate.');
+      if (error.code === 'auth/weak-password') {
+        setError('Password is too weak. Please use at least 6 characters.');
+      } else {
+        setError(error.message || 'Failed to authenticate.');
+      }
       setLoading(false);
     }
   };

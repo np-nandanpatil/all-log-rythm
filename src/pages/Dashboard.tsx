@@ -57,6 +57,7 @@ export function Dashboard() {
     // State for Join Team
     const [joinCode, setJoinCode] = useState('');
     const [joining, setJoining] = useState(false);
+    const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
     const handleJoinTeam = async () => {
         if (!joinCode.trim() || !currentUser?.uid) return;
@@ -75,6 +76,8 @@ export function Dashboard() {
                     message: `Your request to join ${result.teamName} has been sent for approval.`,
                     color: 'blue'
                 });
+                // Optimistically update pending requests
+                setPendingRequests(prev => [...prev, { teamName: result.teamName, status: 'pending' }]);
             } else {
                 notifications.show({ title: 'Welcome!', message: `You have joined ${result.teamName}`, color: 'green' });
                 // Refresh user to get new teamIds
@@ -139,6 +142,12 @@ export function Dashboard() {
 
                             setLogs([]);
                             setTeams([]);
+
+                            // Fetch pending requests for users with no team
+                            if (currentUser.uid) {
+                                const requests = await firebaseService.getUserPendingRequests(currentUser.uid);
+                                setPendingRequests(requests);
+                            }
                         }
                     }
                 } catch (error) {
@@ -461,37 +470,55 @@ export function Dashboard() {
                         - Member/Lead: Sees this ONLY if teams.length === 0
                     */}
                     {(currentUser?.role === 'guide' || (currentUser?.role !== 'admin' && teams.length === 0)) && (
-                        <Paper p="xl" withBorder radius="md" bg="var(--mantine-color-body)">
-                            <Stack gap="sm">
-                                <Group>
-                                    <ThemeIcon color={teams.length > 0 ? "indigo" : "orange"} variant="light" size="lg"><IconUsersGroup size={20} /></ThemeIcon>
-                                    <Title order={4} c={teams.length > 0 ? undefined : "orange.9"}>
-                                        {teams.length > 0 ? "Join Another Team" : "No Team Assigned"}
-                                    </Title>
-                                </Group>
-                                <Text size="sm" c="dimmed">
-                                    {currentUser?.role === 'guide'
-                                        ? "As a Faculty Guide, you can help multiple teams. Enter a Guide Code to join another team."
-                                        : "You are not currently assigned to any team. Ask your Team Lead for their Team Code to join."}
-                                </Text>
-                                <Group align="flex-end" gap="sm">
-                                    <TextInput
-                                        placeholder={currentUser?.role === 'guide' ? "Enter Guide Code" : "Enter Team Code"}
-                                        label={currentUser?.role === 'guide' ? "Guide Code" : "Referral Code"}
-                                        value={joinCode}
-                                        onChange={(e) => setJoinCode(e.target.value)}
-                                        style={{ flex: 1 }}
-                                    />
-                                    <Button
-                                        loading={joining}
-                                        onClick={handleJoinTeam}
-                                        color={teams.length > 0 ? "indigo" : "orange"}
-                                    >
-                                        Join Team
-                                    </Button>
-                                </Group>
-                            </Stack>
-                        </Paper>
+                        pendingRequests.length > 0 ? (
+                            <Paper p="xl" withBorder radius="md" bg="var(--mantine-color-body)">
+                                <Stack gap="sm">
+                                    <Group>
+                                        <ThemeIcon color="blue" variant="light" size="lg"><IconClock size={20} /></ThemeIcon>
+                                        <Title order={4} c="blue.9">Pending Approval</Title>
+                                    </Group>
+                                    <Text size="sm" c="dimmed">
+                                        Your request to join <b>{pendingRequests[0].teamName}</b> is currently pending approval.
+                                        Please ask your Team Lead to approve your request in their dashboard.
+                                    </Text>
+                                    <Alert variant="light" color="blue" icon={<IconClock />}>
+                                        Approval Pending from Team Leader
+                                    </Alert>
+                                </Stack>
+                            </Paper>
+                        ) : (
+                            <Paper p="xl" withBorder radius="md" bg="var(--mantine-color-body)">
+                                <Stack gap="sm">
+                                    <Group>
+                                        <ThemeIcon color={teams.length > 0 ? "indigo" : "orange"} variant="light" size="lg"><IconUsersGroup size={20} /></ThemeIcon>
+                                        <Title order={4} c={teams.length > 0 ? undefined : "orange.9"}>
+                                            {teams.length > 0 ? "Join Another Team" : "No Team Assigned"}
+                                        </Title>
+                                    </Group>
+                                    <Text size="sm" c="dimmed">
+                                        {currentUser?.role === 'guide'
+                                            ? "As a Faculty Guide, you can help multiple teams. Enter a Guide Code to join another team."
+                                            : "You are not currently assigned to any team. Ask your Team Lead for their Team Code to join."}
+                                    </Text>
+                                    <Group align="flex-end" gap="sm">
+                                        <TextInput
+                                            placeholder={currentUser?.role === 'guide' ? "Enter Guide Code" : "Enter Team Code"}
+                                            label={currentUser?.role === 'guide' ? "Guide Code" : "Referral Code"}
+                                            value={joinCode}
+                                            onChange={(e) => setJoinCode(e.target.value)}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <Button
+                                            loading={joining}
+                                            onClick={handleJoinTeam}
+                                            color={teams.length > 0 ? "indigo" : "orange"}
+                                        >
+                                            Join Team
+                                        </Button>
+                                    </Group>
+                                </Stack>
+                            </Paper>
+                        )
                     )}
 
                     {/* Stats Row (Only if logs exist or user is standard) */}
